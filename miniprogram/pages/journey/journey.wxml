@@ -1,0 +1,32 @@
+<view class="container">
+  <view class="title">电竞文旅路线</view>
+  <view class="subtitle">专属定制 · 深度打卡</view>
+
+  <view class="card">
+    <view class="section">选择战队</view>
+    <view class="tags">
+      <view wx:for="{{preferenceOptions.teams}}" wx:key="id" class="tag-item {{selectedTeams.includes(item.id) ? 'selected' : ''}}" data-type="team" data-id="{{item.id}}" bindtap="togglePreference">{{item.name}}</view>
+    </view>
+    <view class="section">选择城市</view>
+    <view class="tags">
+      <view wx:for="{{preferenceOptions.cities}}" wx:key="id" class="tag-item {{selectedCities.includes(item.id) ? 'selected' : ''}}" data-type="city" data-id="{{item.id}}" bindtap="togglePreference">{{item.name}}</view>
+    </view>
+    <button class="gen-btn" loading="{{isGenerating}}" bindtap="generateRoute">{{isGenerating ? "生成中..." : "生成路线"}}</button>
+  </view>
+
+  <view wx:if="{{currentRoute}}" class="card">
+    <view class="route-title">{{currentRoute.title}}</view>
+    <view class="route-desc">{{currentRoute.description}}</view>
+    <view wx:for="{{currentRoute.nodes}}" wx:key="id" class="node">
+      <view>{{index + 1}}. {{item.name}}</view>
+      <view class="node-desc">{{item.description}}</view>
+    </view>
+    <button class="small-btn" bindtap="openAR">去AR打卡</button>
+  </view>
+
+  <view class="card">
+    <view class="section">我的路线</view>
+    <view wx:if="{{myRoutes.length === 0}}" class="empty">还没有生成路线</view>
+    <view wx:for="{{myRoutes}}" wx:key="id" class="route-item" data-route="{{item}}" bindtap="viewRoute">{{item.title}}</view>
+  </view>
+</view>

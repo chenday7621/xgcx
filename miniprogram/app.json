@@ -1,0 +1,27 @@
+{
+  "pages": [
+    "pages/index/index",
+    "pages/chat/chat",
+    "pages/ar/ar",
+    "pages/journey/journey",
+    "pages/profile/profile"
+  ],
+  "usingComponents": {},
+  "window": {
+    "navigationBarBackgroundColor": "#0a0a1a",
+    "navigationBarTextStyle": "white",
+    "navigationBarTitleText": "电竞文旅AI",
+    "backgroundColor": "#0a0a1a",
+    "backgroundTextStyle": "light",
+    "enablePullDownRefresh": false
+  },
+  "sitemapLocation": "sitemap.json",
+  "style": "v2",
+  "lazyCodeLoading": "requiredComponents",
+  "networkTimeout": {
+    "request": 300000,
+    "connectSocket": 60000,
+    "uploadFile": 60000,
+    "downloadFile": 60000
+  }
+}

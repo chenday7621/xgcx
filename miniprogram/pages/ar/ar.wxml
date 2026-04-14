@@ -1,0 +1,23 @@
+<view class="container">
+  <view class="hint">{{scanHint}}</view>
+  <button class="scan-btn" bindtap="toggleScan">{{isScanning ? "停止扫描" : "开始扫描"}}</button>
+
+  <view wx:if="{{recognizedTarget}}" class="card">
+    <view class="title">{{recognizedTarget.playerAvatar}} {{recognizedTarget.name}}</view>
+    <view class="desc">{{recognizedTarget.description}}</view>
+    <view class="line">战队：{{recognizedTarget.team}}</view>
+    <view class="line">羁绊：{{recognizedTarget.bond}}</view>
+    <view class="line">精神：{{recognizedTarget.spirit}}</view>
+    <view class="btn-row">
+      <button class="small-btn" bindtap="askAI">询问AI</button>
+      <button class="small-btn" bindtap="viewFullKG">查看图谱</button>
+    </view>
+  </view>
+
+  <view wx:if="{{scanHistory.length > 0}}" class="history">
+    <view class="history-title">识别历史</view>
+    <view wx:for="{{scanHistory}}" wx:key="id" class="history-item" data-target="{{item}}" bindtap="onHistoryTap">
+      {{item.playerAvatar}} {{item.name}} · {{item.time}}
+    </view>
+  </view>
+</view>

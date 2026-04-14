@@ -1,0 +1,63 @@
+/* 电竞文旅AI小程序 - 全局样式 */
+/* 王者荣耀热血风格主题 */
+
+page {
+  --primary-red: #e63028;
+  --primary-gold: #ffd700;
+  --dark-bg: #0a0a1a;
+  --card-bg: #141428;
+  --card-border: #2a2a4a;
+  --text-primary: #ffffff;
+  --text-secondary: #9999bb;
+  --accent-blue: #00ccff;
+  --accent-purple: #9966ff;
+  --accent-green: #66ff66;
+
+  background-color: var(--dark-bg);
+  color: var(--text-primary);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", sans-serif;
+}
+
+.card {
+  background: var(--card-bg);
+  border: 1rpx solid var(--card-border);
+  border-radius: 16rpx;
+  padding: 30rpx;
+  margin: 20rpx;
+}
+
+.tag {
+  display: inline-block;
+  padding: 6rpx 16rpx;
+  border-radius: 20rpx;
+  font-size: 22rpx;
+  background: var(--card-border);
+}
+
+.tag-red {
+  background: rgba(230, 48, 40, 0.3);
+  color: var(--primary-red);
+}
+
+.tag-gold {
+  background: rgba(255, 215, 0, 0.2);
+  color: var(--primary-gold);
+}
+
+.tag-blue {
+  background: rgba(0, 204, 255, 0.2);
+  color: var(--accent-blue);
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-out;
+}

@@ -1,0 +1,8 @@
+.container { min-height: 100vh; padding: 30rpx; }
+.name { font-size: 40rpx; color: var(--primary-gold); font-weight: bold; }
+.emotion { margin-top: 10rpx; color: var(--text-secondary); }
+.stats { display: grid; grid-template-columns: 1fr 1fr; gap: 14rpx; margin: 20rpx 0; }
+.stat-card { background: var(--card-bg); border: 1rpx solid var(--card-border); border-radius: 16rpx; padding: 20rpx; text-align: center; }
+.value { font-size: 40rpx; color: var(--primary-gold); font-weight: bold; }
+.label { color: var(--text-secondary); font-size: 22rpx; }
+.btn { margin-bottom: 12rpx; border-radius: 40rpx; background: var(--card-border); color: var(--text-primary); }

@@ -1,0 +1,15 @@
+.container { min-height: 100vh; padding: 30rpx; }
+.title { font-size: 46rpx; font-weight: bold; color: var(--primary-gold); }
+.subtitle { margin-top: 8rpx; color: var(--text-secondary); margin-bottom: 20rpx; }
+.section { margin-bottom: 10rpx; color: var(--text-secondary); }
+.tags { display: flex; flex-wrap: wrap; gap: 12rpx; margin-bottom: 16rpx; }
+.tag-item { padding: 10rpx 16rpx; border-radius: 20rpx; border: 1rpx solid var(--card-border); }
+.tag-item.selected { border-color: var(--primary-gold); color: var(--primary-gold); }
+.gen-btn { margin-top: 10rpx; background: linear-gradient(135deg, var(--primary-red), #ff5533); color: #fff; border-radius: 40rpx; }
+.route-title { font-size: 30rpx; color: var(--primary-gold); }
+.route-desc { margin-top: 6rpx; color: var(--text-secondary); }
+.node { margin-top: 10rpx; padding: 10rpx; border-radius: 12rpx; background: rgba(255,255,255,0.03); }
+.node-desc { margin-top: 6rpx; color: var(--text-secondary); font-size: 24rpx; }
+.small-btn { margin-top: 14rpx; background: var(--card-border); color: var(--text-primary); border-radius: 12rpx; }
+.empty { color: var(--text-secondary); }
+.route-item { padding: 12rpx 0; border-bottom: 1rpx solid var(--card-border); }

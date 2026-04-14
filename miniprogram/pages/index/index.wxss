@@ -1,0 +1,123 @@
+.container {
+  min-height: 100vh;
+  padding: 30rpx;
+}
+
+.bg-decoration {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+}
+
+.particle {
+  position: absolute;
+  width: 10rpx;
+  height: 10rpx;
+  border-radius: 50%;
+  opacity: 0.45;
+}
+
+.header-section {
+  padding-top: 40rpx;
+  margin-bottom: 20rpx;
+}
+
+.title-glow {
+  font-size: 52rpx;
+  font-weight: bold;
+  color: var(--primary-gold);
+}
+
+.subtitle {
+  margin-top: 8rpx;
+  font-size: 26rpx;
+  color: var(--text-secondary);
+}
+
+.welcome-header {
+  display: flex;
+  gap: 16rpx;
+}
+
+.emotion-emoji {
+  font-size: 60rpx;
+}
+
+.welcome-title {
+  font-size: 32rpx;
+  color: var(--text-primary);
+}
+
+.welcome-message {
+  margin-top: 8rpx;
+  font-size: 24rpx;
+  color: var(--text-secondary);
+}
+
+.suggestion-tag {
+  display: inline-block;
+  margin: 12rpx 10rpx 0 0;
+  padding: 8rpx 14rpx;
+  border: 1rpx solid var(--primary-gold);
+  border-radius: 20rpx;
+  font-size: 22rpx;
+  color: var(--primary-gold);
+}
+
+.entry-card {
+  margin: 16rpx 0;
+}
+
+.entry-title {
+  font-size: 32rpx;
+}
+
+.entry-desc {
+  margin-top: 8rpx;
+  font-size: 24rpx;
+  color: var(--text-secondary);
+}
+
+.section-title {
+  margin: 26rpx 0 12rpx;
+  font-size: 32rpx;
+  color: var(--primary-gold);
+}
+
+.team-scroll {
+  white-space: nowrap;
+}
+
+.team-card {
+  display: inline-block;
+  width: 220rpx;
+  margin-right: 20rpx;
+  padding: 16rpx;
+  border: 1rpx solid var(--card-border);
+  border-radius: 16rpx;
+  background: var(--card-bg);
+}
+
+.team-logo {
+  width: 100rpx;
+  height: 100rpx;
+  border-radius: 50%;
+  margin: 0 auto 12rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+}
+
+.team-name {
+  text-align: center;
+  font-size: 26rpx;
+}
+
+.team-bonds,
+.team-spirit {
+  margin-top: 6rpx;
+  font-size: 22rpx;
+  color: var(--text-secondary);
+  text-align: center;
+}

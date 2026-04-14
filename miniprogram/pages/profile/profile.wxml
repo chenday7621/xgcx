@@ -1,0 +1,18 @@
+<view class="container">
+  <view class="card">
+    <view class="name">{{userInfo.nickname || "电竞召唤师"}}</view>
+    <view class="emotion">{{currentEmotion.emoji}} {{currentEmotion.name}}模式</view>
+  </view>
+
+  <view class="stats">
+    <view wx:for="{{userStats}}" wx:key="id" class="stat-card">
+      <view class="value">{{item.value}}</view>
+      <view class="label">{{item.label}}</view>
+    </view>
+  </view>
+
+  <view class="card">
+    <button class="btn" bindtap="goChat">进入AI对话</button>
+    <button class="btn" bindtap="goJourney">查看我的路线</button>
+  </view>
+</view>

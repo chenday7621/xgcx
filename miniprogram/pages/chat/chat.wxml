@@ -1,0 +1,60 @@
+<view class="container">
+  <view class="chat-header">
+    <view class="header-left" bindtap="goBack"><text class="back-icon">←</text></view>
+    <view class="header-center">
+      <view class="ai-status"><view class="status-dot"></view><text>AI情感助手</text></view>
+      <view class="emotion-badge" style="background: {{emotionStyle.color}}">
+        <text>{{emotionStyle.emoji}} {{emotionStyle.name}}</text>
+      </view>
+    </view>
+    <view class="header-right" bindtap="clearChat"><text>清空</text></view>
+  </view>
+
+  <scroll-view class="chat-messages" scroll-y="{{true}}" scroll-into-view="{{scrollToView}}" scroll-with-animation="{{true}}">
+    <view wx:if="{{messages.length === 0}}" class="welcome-message">
+      <view class="welcome-avatar">🤖</view>
+      <view class="welcome-content">
+        <view class="welcome-text">你好！我是你的电竞AI助手</view>
+        <view class="welcome-desc">我能：解读选手羁绊 · 传递赛事精神 · 规划文旅路线</view>
+        <view class="quick-questions">
+          <text class="quick-title">你可以问我：</text>
+          <view wx:for="{{quickQuestions}}" wx:key="id" class="quick-tag" data-question="{{item.text}}" bindtap="onQuickQuestion">{{item.text}}</view>
+        </view>
+      </view>
+    </view>
+
+    <view wx:for="{{messages}}" wx:key="id" id="msg-{{index}}" class="message-item {{item.role === 'user' ? 'user-message' : 'ai-message'}}">
+      <view wx:if="{{item.role === 'ai'}}" class="message-content">
+        <view class="avatar ai-avatar">🤖</view>
+        <view class="message-bubble ai-bubble">
+          <text class="message-text" user-select="{{true}}">{{item.content}}</text>
+          <view wx:if="{{item.suggestions}}" class="suggestions">
+            <view wx:for="{{item.suggestions}}" wx:for-item="suggestion" wx:key="index" class="suggestion-btn" data-suggestion="{{suggestion}}" bindtap="onSuggestionTap">{{suggestion}}</view>
+          </view>
+          <view class="message-time">{{item.time}}</view>
+        </view>
+      </view>
+      <view wx:else class="message-content">
+        <view class="message-bubble user-bubble">
+          <text class="message-text">{{item.content}}</text>
+          <view class="emotion-tag">{{item.emotionEmoji}}</view>
+        </view>
+        <view class="avatar user-avatar">👤</view>
+      </view>
+    </view>
+
+    <view wx:if="{{isTyping}}" class="typing-indicator">
+      <view class="avatar ai-avatar">🤖</view>
+      <view class="typing-bubble"><view class="typing-dot"></view><view class="typing-dot"></view><view class="typing-dot"></view></view>
+    </view>
+    <view style="height: 40rpx;"></view>
+  </scroll-view>
+
+  <view class="chat-input-area">
+    <view class="input-wrapper">
+      <input class="chat-input" placeholder="问我任何电竞问题..." placeholder-class="input-placeholder" value="{{inputText}}" bindinput="onInputChange" bindconfirm="sendMessage" confirm-type="send" adjust-position="{{true}}" />
+      <view class="send-btn {{inputText ? 'active' : ''}}" bindtap="sendMessage"><text>发送</text></view>
+    </view>
+    <view class="input-hint"><text>支持：选手羁绊 · 赛事精神 · 文旅路线 · AR扫描</text></view>
+  </view>
+</view>
