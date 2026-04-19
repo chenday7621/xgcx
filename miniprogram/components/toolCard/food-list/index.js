@@ -1,3 +1,5 @@
+const app = getApp();
+
 Component({
   properties: {
     // 组件的属性列表
@@ -45,8 +47,8 @@ Component({
       const foodItem = this.data.foodList.find((item) => item.id === foodId);
 
       // 将商品数据存储到全局数据或通过页面参数传递
-      wx.navigateTo({
-        url: `/pages/foodBuy/foodBuy?id=${foodId}`,
+      app.safeNavigateTo(`/pages/foodBuy/foodBuy?id=${foodId}`).catch((err) => {
+        console.error("navigate to foodBuy failed", err);
       });
     },
   },

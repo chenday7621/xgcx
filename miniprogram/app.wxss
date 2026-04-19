@@ -1,63 +1,268 @@
 /* 电竞文旅AI小程序 - 全局样式 */
-/* 王者荣耀热血风格主题 */
+/* 王者荣耀热血风格主题 - 增强版 */
 
 page {
   --primary-red: #e63028;
+  --primary-red-dark: #c41e12;
   --primary-gold: #ffd700;
+  --primary-gold-light: #ffe55c;
   --dark-bg: #0a0a1a;
+  --dark-bg-deep: #050510;
   --card-bg: #141428;
+  --card-bg-elevated: #1c1c38;
   --card-border: #2a2a4a;
+  --card-border-glow: rgba(230, 48, 40, 0.4);
   --text-primary: #ffffff;
   --text-secondary: #9999bb;
+  --text-muted: #666699;
   --accent-blue: #00ccff;
   --accent-purple: #9966ff;
   --accent-green: #66ff66;
 
-  background-color: var(--dark-bg);
+  background: linear-gradient(180deg, var(--dark-bg-deep) 0%, var(--dark-bg) 50%, #0f0f2a 100%);
   color: var(--text-primary);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  min-height: 100vh;
 }
 
+/* 玻璃拟态卡片 - 极致精致版 */
 .card {
-  background: var(--card-bg);
-  border: 1rpx solid var(--card-border);
-  border-radius: 16rpx;
-  padding: 30rpx;
+  position: relative;
+  background: linear-gradient(
+    135deg,
+    rgba(20, 20, 40, 0.88) 0%,
+    rgba(28, 28, 56, 0.82) 50%,
+    rgba(20, 20, 40, 0.85) 100%
+  );
+  border: 1rpx solid rgba(255, 215, 0, 0.12);
+  border-radius: 28rpx;
+  padding: 32rpx;
   margin: 20rpx;
+  backdrop-filter: blur(24rpx);
+  box-shadow:
+    0 12rpx 40rpx rgba(0, 0, 0, 0.45),
+    0 4rpx 12rpx rgba(0, 0, 0, 0.3),
+    0 0 0 1rpx rgba(255, 255, 255, 0.06),
+    inset 0 1rpx 0 rgba(255, 255, 255, 0.1),
+    inset 0 -1rpx 0 rgba(0, 0, 0, 0.2);
+  transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: hidden;
 }
 
+.card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, transparent 40%),
+    linear-gradient(45deg, rgba(255, 215, 0, 0.06) 0%, transparent 50%);
+  pointer-events: none;
+  border-radius: 28rpx;
+}
+
+.card::after {
+  content: '';
+  position: absolute;
+  inset: -1rpx;
+  background: linear-gradient(
+    135deg,
+    rgba(230, 48, 40, 0.2) 0%,
+    rgba(255, 215, 0, 0.15) 50%,
+    rgba(0, 204, 255, 0.2) 100%
+  );
+  border-radius: 28rpx;
+  opacity: 0;
+  z-index: -1;
+  transition: opacity 0.4s ease;
+  filter: blur(8rpx);
+}
+
+.card:active {
+  transform: scale(0.97) translateY(2rpx);
+  box-shadow:
+    0 8rpx 24rpx rgba(0, 0, 0, 0.35),
+    0 2rpx 6rpx rgba(0, 0, 0, 0.25),
+    0 0 0 1rpx rgba(255, 255, 255, 0.08),
+    inset 0 0 24rpx rgba(255, 215, 0, 0.1);
+}
+
+.card:active::after {
+  opacity: 0.6;
+}
+
+/* 标签样式 - 增强 */
 .tag {
   display: inline-block;
-  padding: 6rpx 16rpx;
-  border-radius: 20rpx;
+  padding: 10rpx 20rpx;
+  border-radius: 24rpx;
   font-size: 22rpx;
-  background: var(--card-border);
+  background: rgba(42, 42, 74, 0.5);
+  color: var(--text-secondary);
+  border: 1rpx solid rgba(42, 42, 74, 0.3);
+  transition: all 0.2s ease;
+}
+
+.tag:active {
+  transform: scale(0.95);
 }
 
 .tag-red {
-  background: rgba(230, 48, 40, 0.3);
+  background: linear-gradient(135deg, rgba(230, 48, 40, 0.3), rgba(196, 30, 18, 0.2));
   color: var(--primary-red);
+  border-color: rgba(230, 48, 40, 0.4);
+  box-shadow: 0 2rpx 8rpx rgba(230, 48, 40, 0.15);
 }
 
 .tag-gold {
-  background: rgba(255, 215, 0, 0.2);
+  background: linear-gradient(135deg, rgba(255, 215, 0, 0.25), rgba(255, 229, 92, 0.15));
   color: var(--primary-gold);
+  border-color: rgba(255, 215, 0, 0.4);
+  box-shadow: 0 2rpx 8rpx rgba(255, 215, 0, 0.15);
 }
 
 .tag-blue {
-  background: rgba(0, 204, 255, 0.2);
+  background: linear-gradient(135deg, rgba(0, 204, 255, 0.25), rgba(0, 255, 255, 0.15));
   color: var(--accent-blue);
+  border-color: rgba(0, 204, 255, 0.4);
+  box-shadow: 0 2rpx 8rpx rgba(0, 204, 255, 0.15);
 }
 
+/* 渐变按钮 */
+.btn-gradient-red {
+  background: linear-gradient(135deg, var(--primary-red), #ff5533);
+  box-shadow: 0 4rpx 16rpx rgba(230, 48, 40, 0.4),
+              0 2rpx 4rpx rgba(0, 0, 0, 0.2);
+  transition: all 0.2s ease;
+}
+
+.btn-gradient-red:active {
+  transform: scale(0.96);
+  box-shadow: 0 2rpx 8rpx rgba(230, 48, 40, 0.3);
+}
+
+.btn-gradient-gold {
+  background: linear-gradient(135deg, var(--primary-gold), #ffe55c);
+  color: var(--dark-bg);
+  box-shadow: 0 4rpx 16rpx rgba(255, 215, 0, 0.4);
+  font-weight: bold;
+}
+
+.btn-gradient-gold:active {
+  transform: scale(0.96);
+}
+
+/* 发光文字效果 */
+.text-glow-gold {
+  color: var(--primary-gold);
+  text-shadow: 0 0 20rpx rgba(255, 215, 0, 0.6),
+               0 0 40rpx rgba(255, 215, 0, 0.3);
+}
+
+.text-glow-red {
+  color: var(--primary-red);
+  text-shadow: 0 0 20rpx rgba(230, 48, 40, 0.6),
+               0 0 40rpx rgba(230, 48, 40, 0.3);
+}
+
+/* 霓虹边框 */
+.neon-border {
+  border: 2rpx solid var(--primary-red);
+  box-shadow: 0 0 16rpx rgba(230, 48, 40, 0.5),
+              inset 0 0 16rpx rgba(230, 48, 40, 0.1);
+}
+
+/* 动画效果 */
 @keyframes fadeIn {
   from {
     opacity: 0;
+    transform: translateY(20rpx);
   }
   to {
     opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(40rpx);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+}
+
+@keyframes glow {
+  0%, 100% {
+    box-shadow: 0 0 16rpx rgba(230, 48, 40, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 32rpx rgba(230, 48, 40, 0.8);
+  }
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10rpx);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
   }
 }
 
 .animate-fade-in {
-  animation: fadeIn 0.3s ease-out;
+  animation: fadeIn 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+.animate-fade-in-up {
+  animation: fadeInUp 0.5s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+.animate-pulse {
+  animation: pulse 2s ease-in-out infinite;
+}
+
+.animate-glow {
+  animation: glow 2s ease-in-out infinite;
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+/* 延迟动画 */
+.delay-1 { animation-delay: 0.1s; }
+.delay-2 { animation-delay: 0.2s; }
+.delay-3 { animation-delay: 0.3s; }
+.delay-4 { animation-delay: 0.4s; }
+.delay-5 { animation-delay: 0.5s; }
+
+/*  shimmer效果 */
+.shimmer {
+  background: linear-gradient(90deg,
+    rgba(255,255,255,0) 0%,
+    rgba(255,255,255,0.1) 50%,
+    rgba(255,255,255,0) 100%);
+  background-size: 200% 100%;
+  animation: shimmer 2s infinite;
 }

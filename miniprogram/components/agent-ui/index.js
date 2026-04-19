@@ -157,36 +157,37 @@ Component({
     threadId: "",
   },
   attached: async function () {
-    const chatMode = this.data.chatMode;
-    // 检查配置
-    const [check, message] = checkConfig(chatMode, this.data.agentConfig, this.data.modelConfig);
-    if (!check) {
-      wx.showModal({
-        title: "提示",
-        content: message,
-      });
-      return;
-    }
-    // 初始化一次cloudInstance，它是单例的，后面不传参数也可以获取到
-    const cloudInstance = await getCloudInstance(this.data.envShareConfig);
-    // 配置型 Agent 初始化
-    if (chatMode === "bot") {
-      console.log("ryan bot")
-      const { botId } = this.data.agentConfig;
-      if (botId.startsWith("agent")) {
-        return;
-      }
-      const ai = cloudInstance.extend.AI;
-      // 查询 agent 相关配置
-      const bot = await ai.bot.get({ botId });
-      // 新增错误提示
-      if (bot.code) {
+    try {
+      const chatMode = this.data.chatMode;
+      // 检查配置
+      const [check, message] = checkConfig(chatMode, this.data.agentConfig, this.data.modelConfig);
+      if (!check) {
         wx.showModal({
           title: "提示",
-          content: bot.message,
+          content: message,
         });
         return;
       }
+      // 初始化一次cloudInstance，它是单例的，后面不传参数也可以获取到
+      const cloudInstance = await getCloudInstance(this.data.envShareConfig);
+      // 配置型 Agent 初始化
+      if (chatMode === "bot") {
+        console.log("ryan bot")
+        const { botId } = this.data.agentConfig;
+        if (botId.startsWith("agent")) {
+          return;
+        }
+        const ai = cloudInstance.extend.AI;
+        // 查询 agent 相关配置
+        const bot = await ai.bot.get({ botId });
+        // 新增错误提示
+        if (bot.code) {
+          wx.showModal({
+            title: "提示",
+            content: bot.message,
+          });
+          return;
+        }
 
       // 初始化第一条记录为welcomeMessage
       const record = {
@@ -262,21 +263,33 @@ Component({
         });
       }
     }
-    if (chatMode === "model") {
-      const { welcomeMsg } = this.data.modelConfig || {};
-      const chatRecords = this.data.chatRecords || [];
-      if (welcomeMsg && chatRecords.length === 0) {
-        this.setData({
-          chatRecords: [
-            {
-              content: welcomeMsg,
-              record_id: "record_id" + String(+new Date() + 10),
-              role: "assistant",
-              hiddenBtnGround: true,
-            },
-          ],
-        });
+      if (chatMode === "model") {
+        const { welcomeMsg } = this.data.modelConfig || {};
+        const chatRecords = this.data.chatRecords || [];
+        if (welcomeMsg && chatRecords.length === 0) {
+          this.setData({
+            chatRecords: [
+              {
+                content: welcomeMsg,
+                record_id: "record_id" + String(+new Date() + 10),
+                role: "assistant",
+                hiddenBtnGround: true,
+              },
+            ],
+          });
+        }
       }
+    } catch (e) {
+      const errMsg = (e && (e.errMsg || e.message)) || "";
+      const isTimeout = /timeout/i.test(String(errMsg));
+      console.error("agent-ui attached failed", e);
+      wx.showModal({
+        title: "初始化失败",
+        content: isTimeout
+          ? "初始化请求超时，请检查网络与云环境配置后重试"
+          : "初始化失败，请稍后重试",
+        showCancel: false,
+      });
     }
   },
   detached: function () {
@@ -365,13 +378,21 @@ Component({
                   reject(err);
                 },
               });
-            }).finally(() => {
-              this.setData({
-                sendStatus: 0,
-                voiceRecognizing: false,
-                longPressTriggered: false,
+            })
+              .catch((err) => {
+                console.error("voice speech-to-text failed", err);
+                wx.showToast({
+                  title: "语音识别失败",
+                  icon: "none",
+                });
+              })
+              .finally(() => {
+                this.setData({
+                  sendStatus: 0,
+                  voiceRecognizing: false,
+                  longPressTriggered: false,
+                });
               });
-            });
           }
         } else {
           this.setData({
@@ -1832,7 +1853,7 @@ Component({
           const isTimeout =
             /timeout/i.test(String(errMsg)) || (e && String(e.message || "").toLowerCase() === "timeout");
           lastValue.content = isTimeout
-            ? "请求超时：请确认已在当前云环境部署 hunyuanChat、已配置密钥，并在云开发控制台查看该函数日志"
+            ? "请求超时：请确认已在当前云环境部署 hunyuanChat，并配置环境变量 YUANQI_APPKEY、YUANQI_ASSISTANT_ID，在云开发控制台查看函数日志"
             : errMsg || this.data.defaultErrorMsg;
           lastValue.error = lastValue.content;
         }

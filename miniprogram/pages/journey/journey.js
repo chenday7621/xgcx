@@ -72,6 +72,8 @@ Page({
   },
 
   openAR() {
-    wx.navigateTo({ url: "/pages/ar/ar" });
+    app.safeNavigateTo("/pages/ar/ar").catch((err) => {
+      console.error("navigate to ar failed", err);
+    });
   },
 });

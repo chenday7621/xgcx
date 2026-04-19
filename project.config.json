@@ -73,7 +73,7 @@
     "include": []
   },
   "appid": "wxbad9e496d795a464",
-  "libVersion": "3.8.1",
+  "libVersion": "3.15.1",
   "simulatorPluginLibVersion": {},
   "description": "项目配置文件，详见文档：https://developers.weixin.qq.com/miniprogram/dev/devtools/projectconfig.html"
 }

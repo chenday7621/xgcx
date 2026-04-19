@@ -43,10 +43,14 @@ Page({
   },
 
   goJourney() {
-    wx.navigateTo({ url: "/pages/journey/journey" });
+    app.safeNavigateTo("/pages/journey/journey").catch((err) => {
+      console.error("navigate to journey failed", err);
+    });
   },
 
   goChat() {
-    wx.navigateTo({ url: "/pages/chat/chat" });
+    app.safeNavigateTo("/pages/chat/chat").catch((err) => {
+      console.error("navigate to chat failed", err);
+    });
   },
 });

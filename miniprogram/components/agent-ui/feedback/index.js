@@ -245,33 +245,42 @@ Component({
       this.triggerEvent('close')
     },
     submitFeedback: async function () {
-      const res = await wx.cloud.extend.AI.bot.sendFeedback({
-        userFeedback: {
-          botId: this.data.botId,
-          recordId: this.data.feedbackRecordId,
-          comment: this.data.message,
-          rating: this.data.score,
-          tags: this.data.feedbackType === 'upvote' ? this.data.upVote.filter(item => item.selected).map(item => item.value) : this.data.downVote.filter(item => item.selected).map(item => item.value),
-          aiAnswer: this.data.aiAnswer,
-          input: this.data.input,
-          type: this.data.feedbackType === 'upvote' ? "upvote" : 'downvote',
-        },
-        botId: this.data.botId
-      });
-      if (res.status === 'success') {
-        wx.showToast({
-          title: "感谢反馈",
-          icon: "success",
+      try {
+        const res = await wx.cloud.extend.AI.bot.sendFeedback({
+          userFeedback: {
+            botId: this.data.botId,
+            recordId: this.data.feedbackRecordId,
+            comment: this.data.message,
+            rating: this.data.score,
+            tags: this.data.feedbackType === 'upvote' ? this.data.upVote.filter(item => item.selected).map(item => item.value) : this.data.downVote.filter(item => item.selected).map(item => item.value),
+            aiAnswer: this.data.aiAnswer,
+            input: this.data.input,
+            type: this.data.feedbackType === 'upvote' ? "upvote" : 'downvote',
+          },
+          botId: this.data.botId
         });
-      } else {
+        if (res.status === 'success') {
+          wx.showToast({
+            title: "感谢反馈",
+            icon: "success",
+          });
+        } else {
+          wx.showToast({
+            title: "反馈失败",
+            icon: "fail",
+          });
+        }
+      } catch (e) {
+        console.error("submitFeedback failed", e);
         wx.showToast({
           title: "反馈失败",
-          icon: "fail",
+          icon: "none",
         });
+      } finally {
+        this.reset();
+        // console.log(res)
+        this.triggerEvent("close")
       }
-      this.reset();
-      // console.log(res)
-      this.triggerEvent("close")
     }
   }
 })

@@ -1,3 +1,5 @@
+const app = getApp();
+
 Page({
   data: {
     isScanning: false,
@@ -68,9 +70,11 @@ Page({
   askAI() {
     const target = this.data.recognizedTarget;
     if (!target) return;
-    wx.navigateTo({
-      url: `/pages/chat/chat?prefill=${encodeURIComponent(`请告诉我${target.name}的${target.bond}故事和${target.spirit}精神`)}`,
-    });
+    app
+      .safeNavigateTo(`/pages/chat/chat?prefill=${encodeURIComponent(`请告诉我${target.name}的${target.bond}故事和${target.spirit}精神`)}`)
+      .catch((err) => {
+        console.error("navigate askAI failed", err);
+      });
   },
 
   viewFullKG() {
@@ -81,7 +85,11 @@ Page({
       content: `战队: ${t.team}\n羁绊: ${t.bond}\n精神: ${t.spirit}\n景点: ${t.scenic}`,
       confirmText: "生成文旅路线",
       success: (res) => {
-        if (res.confirm) wx.navigateTo({ url: "/pages/journey/journey" });
+        if (res.confirm) {
+          app.safeNavigateTo("/pages/journey/journey").catch((err) => {
+            console.error("navigate to journey failed", err);
+          });
+        }
       },
     });
   },

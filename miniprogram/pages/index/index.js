@@ -13,34 +13,123 @@ Page({
       { id: 4, text: "成都AG主场有什么" },
     ],
     hotTeams: [
-      { id: 1, name: "EDG", color: "linear-gradient(135deg, #ff4444, #ff8833)", logoText: "EDG", bonds: "Meiko&Scout", spirit: "团结拼搏" },
-      { id: 2, name: "AG超玩会", color: "linear-gradient(135deg, #00ccff, #9966ff)", logoText: "AG", bonds: "一诺&Cat", spirit: "永不言弃" },
-      { id: 3, name: "狼队", color: "linear-gradient(135deg, #ffd700, #ffaa00)", logoText: "狼", bonds: "Fly&胖皇", spirit: "坚韧不拔" },
-      { id: 4, name: "TES", color: "linear-gradient(135deg, #66ff66, #00ccff)", logoText: "TES", bonds: "knight&JackeyLove", spirit: "无畏前行" },
+      { id: 1, name: "EDG", color: "linear-gradient(135deg, #ff4444, #ff8833)", logoText: "EDG", bonds: "Meiko&Scout", spirit: "团结拼搏", delayClass: "delay-7" },
+      { id: 2, name: "AG超玩会", color: "linear-gradient(135deg, #00ccff, #9966ff)", logoText: "AG", bonds: "一诺&Cat", spirit: "永不言弃", delayClass: "delay-8" },
+      { id: 3, name: "狼队", color: "linear-gradient(135deg, #ffd700, #ffaa00)", logoText: "狼", bonds: "Fly&胖皇", spirit: "坚韧不拔", delayClass: "delay-9" },
+      { id: 4, name: "TES", color: "linear-gradient(135deg, #66ff66, #00ccff)", logoText: "TES", bonds: "knight&JackeyLove", spirit: "无畏前行", delayClass: "delay-10" },
     ],
+    pageLoaded: false,
+    contentVisible: false,
   },
 
   onLoad() {
+    this._isPageActive = true;
     this.generateParticles();
     this.updateWelcomeByTime();
+
+    // 页面加载动画 - 延迟显示内容，创造渐进式入场
+    this.pageLoadTimer = setTimeout(() => {
+      if (!this._isPageActive) {
+        return;
+      }
+      this.setData({
+        pageLoaded: true,
+        contentVisible: true
+      });
+    }, 300);
+  },
+
+  onUnload() {
+    this._isPageActive = false;
+    this.clearPageTimers();
+  },
+
+  onHide() {
+    // 开发者工具热重载和切后台时，也要停止动画避免空页面 setData
+    this._isPageActive = false;
+    this.clearPageTimers();
   },
 
   onShow() {
+    this._isPageActive = true;
+    if (!this.particleInterval) {
+      this.generateParticles();
+    }
     const emotion = app.globalData.emotion;
     if (emotion && emotion !== "neutral") this.updateWelcomeByEmotion(emotion);
   },
 
+  clearPageTimers() {
+    if (this.particleInterval) {
+      clearInterval(this.particleInterval);
+      this.particleInterval = null;
+    }
+    if (this.pageLoadTimer) {
+      clearTimeout(this.pageLoadTimer);
+      this.pageLoadTimer = null;
+    }
+  },
+
   generateParticles() {
+    if (this.particleInterval) {
+      clearInterval(this.particleInterval);
+      this.particleInterval = null;
+    }
     const particles = [];
-    for (let i = 0; i < 20; i += 1) {
+    const colors = [
+      { color: '#ff4444', glow: 'rgba(255, 68, 68, 0.6)' },
+      { color: '#ffd700', glow: 'rgba(255, 215, 0, 0.6)' },
+      { color: '#00ccff', glow: 'rgba(0, 204, 255, 0.6)' },
+      { color: '#9966ff', glow: 'rgba(153, 102, 255, 0.6)' }
+    ];
+
+    for (let i = 0; i < 30; i += 1) {
+      const colorIndex = Math.floor(Math.random() * 4);
+      const angle = Math.random() * Math.PI * 2;
+      const distance = 20 + Math.random() * 80;
+      const size = 4 + Math.random() * 8;
+
       particles.push({
         id: i,
         top: Math.random() * 100,
         left: Math.random() * 100,
-        color: ["#ff4444", "#ffd700", "#00ccff", "#9966ff"][Math.floor(Math.random() * 4)],
+        color: colors[colorIndex].color,
+        glow: colors[colorIndex].glow,
+        size: size,
+        sizeDouble: size * 2, // 预计算
+        speedX: (Math.random() - 0.5) * 0.02,
+        speedY: (Math.random() - 0.5) * 0.02,
+        opacity: 0.3 + Math.random() * 0.4,
+        angle,
+        distance,
       });
     }
+
+    if (!this._isPageActive) {
+      return;
+    }
     this.setData({ particles });
+
+    // 动态更新粒子位置
+    this.particleInterval = setInterval(() => {
+      if (!this._isPageActive) {
+        this.clearPageTimers();
+        return;
+      }
+      const particles = this.data.particles.map(p => {
+        let newAngle = p.angle + 0.01;
+        let newX = 50 + Math.cos(newAngle) * p.distance;
+        let newY = 50 + Math.sin(newAngle) * p.distance;
+
+        return {
+          ...p,
+          angle: newAngle,
+          top: Math.max(5, Math.min(95, newY + (Math.random() - 0.5) * 2)),
+          left: Math.max(5, Math.min(95, newX + (Math.random() - 0.5) * 2)),
+        };
+      });
+      this.setData({ particles });
+    }, 50);
   },
 
   updateWelcomeByTime() {
@@ -76,15 +165,21 @@ Page({
 
   onSuggestionTap(e) {
     const message = e.currentTarget.dataset.message;
-    wx.navigateTo({ url: `/pages/chat/chat?prefill=${encodeURIComponent(message)}` });
+    app.safeNavigateTo(`/pages/chat/chat?prefill=${encodeURIComponent(message)}`).catch((err) => {
+      console.error("navigate to chat failed", err);
+    });
   },
 
   onEntryTap(e) {
-    wx.navigateTo({ url: e.currentTarget.dataset.path });
+    app.safeNavigateTo(e.currentTarget.dataset.path).catch((err) => {
+      console.error("navigate to entry failed", err);
+    });
   },
 
   onTeamTap(e) {
     const team = e.currentTarget.dataset.team;
-    wx.navigateTo({ url: `/pages/chat/chat?team=${team}` });
+    app.safeNavigateTo(`/pages/chat/chat?team=${team}`).catch((err) => {
+      console.error("navigate to team chat failed", err);
+    });
   },
 });

@@ -1,50 +1,82 @@
 <view class="container">
   <view class="bg-decoration">
-    <view class="particle" wx:for="{{particles}}" wx:key="id" style="top:{{item.top}}%; left:{{item.left}}%; background:{{item.color}}"></view>
+    <view class="particle-container">
+      <view
+        wx:for="{{particles}}"
+        wx:key="id"
+        class="particle"
+        style="top: {{item.top}}%; left: {{item.left}}%; background: {{item.color}}; width: {{item.size}}rpx; height: {{item.size}}rpx; opacity: {{item.opacity}}; box-shadow: 0 0 {{item.size}}rpx {{item.glow}}, 0 0 {{item.sizeDouble}}rpx {{item.glow}}; animation-delay: {{item.id * 0.1}}s;"
+      ></view>
+    </view>
+    <!-- 装饰性呼吸光环 -->
+    <view class="orb orb-1"></view>
+    <view class="orb orb-2"></view>
+    <view class="orb orb-3"></view>
   </view>
 
-  <view class="header-section">
-    <view class="title-glow">电竞文旅AI</view>
-    <view class="subtitle">探索电竞世界 · 感受赛事精神</view>
-  </view>
-
-  <view class="welcome-card card">
-    <view class="welcome-header">
-      <view class="emotion-emoji">{{welcomeEmoji}}</view>
-      <view class="welcome-content">
-        <view class="welcome-title">{{welcomeTitle}}</view>
-        <view class="welcome-message">{{welcomeMessage}}</view>
+  <view class="content-wrapper {{contentVisible ? 'visible' : ''}}">
+    <view class="header-section animate-on-visible delay-1">
+      <view class="title-wrapper">
+        <view class="title-glow">电竞文旅AI</view>
+        <view class="title-decoration"></view>
+      </view>
+      <view class="subtitle">
+        <text class="subtitle-icon">◆</text>
+        探索电竞世界 · 感受赛事精神
+        <text class="subtitle-icon">◆</text>
       </view>
     </view>
-    <view class="welcome-suggestions">
-      <view wx:for="{{suggestions}}" wx:key="id" class="suggestion-tag" data-message="{{item.text}}" bindtap="onSuggestionTap">{{item.text}}</view>
-    </view>
-  </view>
 
-  <view class="core-entries">
-    <view class="entry-card card" data-path="/pages/chat/chat" bindtap="onEntryTap">
-      <view class="entry-title">💬 AI情感对话</view>
-      <view class="entry-desc">懂你的情绪 · 传递电竞精神</view>
-    </view>
-    <view class="entry-card card" data-path="/pages/ar/ar" bindtap="onEntryTap">
-      <view class="entry-title">📸 AR奇幻扫描</view>
-      <view class="entry-desc">线下打卡 · 虚拟赛场重现</view>
-    </view>
-    <view class="entry-card card" data-path="/pages/journey/journey" bindtap="onEntryTap">
-      <view class="entry-title">🗺️ 电竞文旅路线</view>
-      <view class="entry-desc">个性定制 · 深度打卡体验</view>
-    </view>
-  </view>
-
-  <view class="kg-section">
-    <view class="section-title">热门战队羁绊</view>
-    <scroll-view class="team-scroll" scroll-x="{{true}}" enable-flex="{{true}}">
-      <view wx:for="{{hotTeams}}" wx:key="id" class="team-card" data-team="{{item.name}}" bindtap="onTeamTap">
-        <view class="team-logo" style="background: {{item.color}}">{{item.logoText}}</view>
-        <view class="team-name">{{item.name}}</view>
-        <view class="team-bonds">{{item.bonds}}</view>
-        <view class="team-spirit">{{item.spirit}}</view>
+    <view class="welcome-card card animate-on-visible delay-2">
+      <view class="welcome-header">
+        <view class="emotion-emoji">{{welcomeEmoji}}</view>
+        <view class="welcome-content">
+          <view class="welcome-title">{{welcomeTitle}}</view>
+          <view class="welcome-message">{{welcomeMessage}}</view>
+        </view>
       </view>
-    </scroll-view>
+      <view class="welcome-suggestions">
+        <view wx:for="{{suggestions}}" wx:key="id" class="suggestion-tag" data-message="{{item.text}}" bindtap="onSuggestionTap">{{item.text}}</view>
+      </view>
+    </view>
+
+    <view class="core-entries">
+      <view class="entry-card card animate-on-visible delay-3" data-path="/pages/chat/chat" bindtap="onEntryTap">
+        <view class="entry-icon">💬</view>
+        <view class="entry-content">
+          <view class="entry-title">AI情感对话</view>
+          <view class="entry-desc">懂你的情绪 · 传递电竞精神</view>
+        </view>
+      </view>
+      <view class="entry-card card animate-on-visible delay-4" data-path="/pages/ar/ar" bindtap="onEntryTap">
+        <view class="entry-icon">📸</view>
+        <view class="entry-content">
+          <view class="entry-title">AR奇幻扫描</view>
+          <view class="entry-desc">线下打卡 · 虚拟赛场重现</view>
+        </view>
+      </view>
+      <view class="entry-card card animate-on-visible delay-5" data-path="/pages/journey/journey" bindtap="onEntryTap">
+        <view class="entry-icon">🗺️</view>
+        <view class="entry-content">
+          <view class="entry-title">电竞文旅路线</view>
+          <view class="entry-desc">个性定制 · 深度打卡体验</view>
+        </view>
+      </view>
+    </view>
+
+    <view class="kg-section">
+      <view class="section-title animate-on-visible delay-6">
+        <text class="section-title-icon">⚡</text>
+        热门战队羁绊
+      </view>
+      <scroll-view class="team-scroll" scroll-x="{{true}}" enable-flex="{{true}}">
+        <view wx:for="{{hotTeams}}" wx:key="id" class="team-card {{item.delayClass}}" data-team="{{item.name}}" bindtap="onTeamTap">
+          <view class="team-logo" style="background: {{item.color}}">{{item.logoText}}</view>
+          <view class="team-name">{{item.name}}</view>
+          <view class="team-bonds">{{item.bonds}}</view>
+          <view class="team-spirit">{{item.spirit}}</view>
+        </view>
+      </scroll-view>
+    </view>
   </view>
 </view>

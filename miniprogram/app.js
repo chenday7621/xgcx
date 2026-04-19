@@ -24,6 +24,55 @@ App({
     }
     this.loadUserData();
     this.initEmotionModule();
+    this._routeLock = {
+      pending: false,
+      lastUrl: "",
+      lastAt: 0,
+    };
+  },
+
+  onError: function (err) {
+    console.error("[GlobalError]", err);
+  },
+
+  onUnhandledRejection: function (res) {
+    const reason = res && res.reason ? res.reason : res;
+    console.error("[UnhandledRejection]", reason);
+  },
+
+  onPageNotFound: function (res) {
+    console.error("[PageNotFound]", res);
+  },
+
+  safeNavigateTo: function (url) {
+    if (!url) {
+      return Promise.reject(new Error("navigate url is required"));
+    }
+    const now = Date.now();
+    const lock = this._routeLock || { pending: false, lastUrl: "", lastAt: 0 };
+    const isDuplicate = lock.lastUrl === url && now - lock.lastAt < 1200;
+    if (lock.pending || isDuplicate) {
+      return Promise.resolve({ skipped: true, reason: "route_locked" });
+    }
+    this._routeLock = {
+      pending: true,
+      lastUrl: url,
+      lastAt: now,
+    };
+    return new Promise((resolve, reject) => {
+      wx.navigateTo({
+        url,
+        success: (res) => resolve(res),
+        fail: (err) => reject(err),
+        complete: () => {
+          setTimeout(() => {
+            if (this._routeLock) {
+              this._routeLock.pending = false;
+            }
+          }, 300);
+        },
+      });
+    });
   },
 
   loadUserData: function () {

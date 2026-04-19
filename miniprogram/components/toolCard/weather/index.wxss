@@ -1,70 +1,96 @@
+/* 天气卡片 - 电竞暗黑风格 */
 .container {
   display: flex;
   flex-direction: column;
-  gap: 16rpx;
-  border-radius: 32rpx;
-  padding: 16rpx;
-  /* max-width: 500rpx; */
-  /* width: 100%; */
+  gap: 20rpx;
+  border-radius: 24rpx;
+  padding: 28rpx;
+  background: linear-gradient(135deg, rgba(20, 20, 40, 0.9), rgba(28, 28, 56, 0.8));
+  border: 2rpx solid rgba(42, 42, 74, 0.6);
+  backdrop-filter: blur(10rpx);
+  box-shadow: 0 8rpx 24rpx rgba(0, 0, 0, 0.2);
+  transition: all 0.2s ease;
+  animation: fadeInUp 0.5s ease-out;
+}
+
+.container:active {
+  transform: scale(0.98);
+  border-color: rgba(255, 215, 0, 0.5);
 }
 
 .day {
-  background-color: #60a5fa;
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.3), rgba(139, 92, 246, 0.2));
 }
 
 .night {
-  background-color: #312e81;
+  background: linear-gradient(135deg, rgba(30, 27, 75, 0.5), rgba(55, 48, 163, 0.3));
 }
 
 .header {
   display: flex;
-  flex-direction: row;
-  justify-content: space-between;
+  flex-direction: column;
+  gap: 16rpx;
   align-items: center;
+  padding-bottom: 20rpx;
+  border-bottom: 2rpx solid rgba(42, 42, 74, 0.5);
 }
 
 .temp-container {
   display: flex;
-  flex-direction: row;
-  gap: 8rpx;
+  flex-direction: column;
   align-items: center;
+  gap: 12rpx;
 }
 
 .temp-circle {
-  width: 80rpx;
-  height: 80rpx;
+  width: 100rpx;
+  height: 100rpx;
   border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.1);
+  border: 3rpx solid rgba(255, 255, 255, 0.2);
 }
 
 .day-circle {
-  background-color: #facc15;
+  background: linear-gradient(135deg, #fbbf24, #f59e0b);
+  box-shadow: 0 8rpx 24rpx rgba(251, 191, 36, 0.4);
 }
 
 .night-circle {
-  background-color: #c7d2fe;
+  background: linear-gradient(135deg, #a5b4fc, #818cf8);
+  box-shadow: 0 8rpx 24rpx rgba(165, 180, 252, 0.4);
 }
 
 .temp-text {
-  font-size: 48rpx;
-  font-weight: 500;
-  color: #f0f9ff;
+  font-size: 56rpx;
+  font-weight: bold;
+  color: var(--text-primary);
+  text-shadow: 0 0 20rpx rgba(255, 255, 255, 0.3);
 }
 
 .city-text {
-  font-size: 38rpx;
-  font-weight: 500;
-  color: #f0f9ff;
+  font-size: 32rpx;
+  font-weight: bold;
+  color: var(--primary-gold);
+  text-shadow: 0 0 16rpx rgba(255, 215, 0, 0.5);
 }
 
 .high-low-text {
-  color: #f0f9ff;
-  font-size: 14px;
+  color: var(--text-secondary);
+  font-size: 24rpx;
+  background: rgba(0, 0, 0, 0.2);
+  padding: 6rpx 16rpx;
+  border-radius: 20rpx;
 }
 
 .hourly-container {
   display: flex;
   flex-direction: row;
   justify-content: space-between;
+  gap: 8rpx;
+  padding-top: 16rpx;
 }
 
 .hourly-item {
@@ -72,28 +98,36 @@
   flex-direction: column;
   align-items: center;
   gap: 8rpx;
+  flex: 1;
 }
 
 .hour-text {
-  color: #dbeafe;
-  font-size: 24rpx;
+  color: var(--text-secondary);
+  font-size: 22rpx;
+  text-align: center;
 }
 
 .hour-circle {
   width: 48rpx;
   height: 48rpx;
   border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.08);
+  border: 2rpx solid rgba(255, 255, 255, 0.1);
 }
 
 .hour-day-circle {
-  background-color: #facc15;
+  background: linear-gradient(135deg, #fbbf24, #f59e0b);
 }
 
 .hour-night-circle {
-  background-color: #e0e7ff;
+  background: linear-gradient(135deg, #a5b4fc, #818cf8);
 }
 
 .hour-temp {
-  color: #f0f9ff;
-  font-size: 28rpx;
+  color: var(--text-primary);
+  font-size: 22rpx;
+  font-weight: bold;
 }

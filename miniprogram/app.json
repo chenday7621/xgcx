@@ -17,7 +17,6 @@
   },
   "sitemapLocation": "sitemap.json",
   "style": "v2",
-  "lazyCodeLoading": "requiredComponents",
   "networkTimeout": {
     "request": 300000,
     "connectSocket": 60000,

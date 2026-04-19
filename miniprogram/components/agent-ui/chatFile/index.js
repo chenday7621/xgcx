@@ -3,72 +3,81 @@ import { getCloudInstance, compareVersions, commonRequest } from "../tools";
 Component({
   lifetimes: {
     attached: async function () {
-      console.log("enableDel", this.data.enableDel);
-      const { tempFileName, rawFileName, rawType, tempPath, fileId, botId, status } = this.data.fileData;
-      const type = this.getFileType(rawFileName || tempFileName);
-      console.log("type", type);
-      if (!fileId) {
-        this.setData({
-          iconPath: "../imgs/" + type + ".svg",
-        });
+      try {
+        console.log("enableDel", this.data.enableDel);
+        const { tempFileName, rawFileName, rawType, tempPath, fileId, botId, status } = this.data.fileData;
+        const type = this.getFileType(rawFileName || tempFileName);
+        console.log("type", type);
+        if (!fileId) {
+          this.setData({
+            iconPath: "../imgs/" + type + ".svg",
+          });
 
-        this.triggerEvent("changeChild", { tempId: this.data.fileData.tempId, status: "uploading" });
-      }
+          this.triggerEvent("changeChild", { tempId: this.data.fileData.tempId, status: "uploading" });
+        }
 
-      if (fileId && status === "parsed") {
-        this.setData({
-          iconPath: "../imgs/" + type + ".svg",
-        });
-        return;
-      }
-      const cloudInstance = await getCloudInstance();
-      // console.log('file', cloudInstance)
-      // 上传云存储获取 fileId
-      // console.log('rawFileName tempFileName tempPath', rawFileName, tempFileName, tempPath)
-      cloudInstance.uploadFile({
-        cloudPath: this.generateCosUploadPath(
-          botId,
-          rawFileName ? rawFileName.split(".")[0] + "-" + tempFileName : tempFileName
-        ), // 云上文件路径
-        filePath: tempPath,
-        success: async (res) => {
-          const appBaseInfo = wx.getAppBaseInfo();
-          const fileId = res.fileID;
-          console.log("当前版本", appBaseInfo.SDKVersion);
-          if (botId.startsWith("ibot")) {
-            this.triggerEvent("changeChild", { tempId: this.data.fileData.tempId, fileId, status: "parsed" });
-          } else {
-            this.triggerEvent("changeChild", { tempId: this.data.fileData.tempId, status: "parsing" });
-            commonRequest({
-              path: `bots/${botId}/files`,
-              data: {
-                fileList: [
-                  {
-                    fileName: rawFileName || tempFileName,
+        if (fileId && status === "parsed") {
+          this.setData({
+            iconPath: "../imgs/" + type + ".svg",
+          });
+          return;
+        }
+        const cloudInstance = await getCloudInstance();
+        // console.log('file', cloudInstance)
+        // 上传云存储获取 fileId
+        // console.log('rawFileName tempFileName tempPath', rawFileName, tempFileName, tempPath)
+        cloudInstance.uploadFile({
+          cloudPath: this.generateCosUploadPath(
+            botId,
+            rawFileName ? rawFileName.split(".")[0] + "-" + tempFileName : tempFileName
+          ), // 云上文件路径
+          filePath: tempPath,
+          success: async (res) => {
+            const appBaseInfo = wx.getAppBaseInfo();
+            const fileId = res.fileID;
+            console.log("当前版本", appBaseInfo.SDKVersion);
+            if (botId.startsWith("ibot")) {
+              this.triggerEvent("changeChild", { tempId: this.data.fileData.tempId, fileId, status: "parsed" });
+            } else {
+              this.triggerEvent("changeChild", { tempId: this.data.fileData.tempId, status: "parsing" });
+              commonRequest({
+                path: `bots/${botId}/files`,
+                data: {
+                  fileList: [
+                    {
+                      fileName: rawFileName || tempFileName,
+                      fileId,
+                      type: rawType,
+                    },
+                  ],
+                }, // any
+                method: "POST",
+                timeout: 60000,
+                success: (res) => {
+                  console.log("resolve agent file res", res);
+                  this.triggerEvent("changeChild", { tempId: this.data.fileData.tempId, fileId, status: "parsed" });
+                },
+                fail: (e) => {
+                  console.log("e", e);
+                  this.triggerEvent("changeChild", {
+                    tempId: this.data.fileData.tempId,
                     fileId,
-                    type: rawType,
-                  },
-                ],
-              }, // any
-              method: "POST",
-              timeout: 60000,
-              success: (res) => {
-                console.log("resolve agent file res", res);
-                this.triggerEvent("changeChild", { tempId: this.data.fileData.tempId, fileId, status: "parsed" });
-              },
-              fail: (e) => {
-                console.log("e", e);
-                this.triggerEvent("changeChild", { tempId: this.data.fileData.tempId, fileId, status: "parseFailed" });
-              },
-              complete: () => {},
-              header: {},
-            });
-          }
-        },
-        fail: (err) => {
-          console.error("上传失败：", err);
-        },
-      });
+                    status: "parseFailed",
+                  });
+                },
+                complete: () => {},
+                header: {},
+              });
+            }
+          },
+          fail: (err) => {
+            console.error("上传失败：", err);
+          },
+        });
+      } catch (e) {
+        console.error("chatFile attached failed", e);
+        this.triggerEvent("changeChild", { tempId: this.data.fileData.tempId, status: "parseFailed" });
+      }
     },
   },
   observers: {
@@ -198,32 +207,40 @@ Component({
       });
     },
     openFile: async function () {
-      if (this.data.fileData.tempPath) {
-        // 本地上传的文件
-        if (this.data.fileData.rawType === "file") {
-          this.openFileByWx(this.data.fileData.tempPath);
-        } else {
-          console.log("fileId", this.data.fileData.fileId);
-          if (this.data.fileData.fileId) {
-            this.previewImageByWx(this.data.fileData.fileId);
-          }
-        }
-      } else if (this.data.fileData.fileId) {
-        // 针对历史记录中带cloudID的处理（历史记录中附带的文件）
-        const cloudInsatnce = await getCloudInstance();
-        cloudInsatnce.downloadFile({
-          fileID: this.data.fileData.fileId,
-          success: (res) => {
-            console.log("download res", res);
-            if (this.data.fileData.rawType === "file") {
-              this.openFileByWx(res.tempFilePath);
-            } else {
+      try {
+        if (this.data.fileData.tempPath) {
+          // 本地上传的文件
+          if (this.data.fileData.rawType === "file") {
+            this.openFileByWx(this.data.fileData.tempPath);
+          } else {
+            console.log("fileId", this.data.fileData.fileId);
+            if (this.data.fileData.fileId) {
               this.previewImageByWx(this.data.fileData.fileId);
             }
-          },
-          fail: (err) => {
-            console.log("download err", err);
-          },
+          }
+        } else if (this.data.fileData.fileId) {
+          // 针对历史记录中带cloudID的处理（历史记录中附带的文件）
+          const cloudInsatnce = await getCloudInstance();
+          cloudInsatnce.downloadFile({
+            fileID: this.data.fileData.fileId,
+            success: (res) => {
+              console.log("download res", res);
+              if (this.data.fileData.rawType === "file") {
+                this.openFileByWx(res.tempFilePath);
+              } else {
+                this.previewImageByWx(this.data.fileData.fileId);
+              }
+            },
+            fail: (err) => {
+              console.log("download err", err);
+            },
+          });
+        }
+      } catch (e) {
+        console.error("openFile failed", e);
+        wx.showToast({
+          title: "文件处理失败",
+          icon: "none",
         });
       }
     },

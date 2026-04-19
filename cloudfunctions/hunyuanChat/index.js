@@ -1,87 +1,29 @@
-const crypto = require("crypto");
 const https = require("https");
+const cloud = require("wx-server-sdk");
 
-const ENDPOINT = "hunyuan.tencentcloudapi.com";
-const SERVICE = "hunyuan";
-const VERSION = "2023-09-01";
-const ACTION = "ChatCompletions";
-const ALGORITHM = "TC3-HMAC-SHA256";
+cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV });
 
-function sha256(content) {
-  return crypto.createHash("sha256").update(content, "utf8").digest("hex");
+/**
+ * 腾讯元器 OpenAPI
+ * - 文档 curl：`https://yuanqi.tencent.com/...` + `Authorization`（无 X-Source）
+ * - 官方 Python 示例：`https://open.hunyuan.tencent.com/...` + `X-Source: openapi`
+ * 文档：https://yuanqi.tencent.com/guide/publish-agent-api-documentation
+ */
+const YUANQI_PATH = "/openapi/v1/agent/chat/completions";
+
+function bodySnippet(body, maxLen) {
+  const s = body || "";
+  if (s.length <= maxLen) return s;
+  return s.slice(0, maxLen) + "...";
 }
 
-function hmacSha256(key, content, encoding) {
-  return crypto.createHmac("sha256", key).update(content, "utf8").digest(encoding);
-}
-
-function parseEnvFloat(name, fallback) {
-  const v = process.env[name];
-  if (v === undefined || v === "") return fallback;
-  const n = Number(v);
-  return Number.isFinite(n) ? n : fallback;
-}
-
-function resolveMaxTokens(event) {
-  if (event && typeof event.maxTokens === "number" && Number.isInteger(event.maxTokens) && event.maxTokens > 0) {
-    return event.maxTokens;
-  }
-  const raw = process.env.HUNYUAN_MAX_TOKENS;
-  if (raw === undefined || raw === "") return undefined;
-  const n = parseInt(String(raw), 10);
-  if (Number.isFinite(n) && n > 0) return n;
-  return undefined;
-}
-
-function buildAuthorization({
-  secretId,
-  secretKey,
-  timestamp,
-  date,
-  requestPayload,
-}) {
-  const httpRequestMethod = "POST";
-  const canonicalUri = "/";
-  const canonicalQueryString = "";
-  const canonicalHeaders = `content-type:application/json; charset=utf-8\nhost:${ENDPOINT}\n`;
-  const signedHeaders = "content-type;host";
-  const hashedRequestPayload = sha256(requestPayload);
-  const canonicalRequest =
-    `${httpRequestMethod}\n` +
-    `${canonicalUri}\n` +
-    `${canonicalQueryString}\n` +
-    `${canonicalHeaders}\n` +
-    `${signedHeaders}\n` +
-    `${hashedRequestPayload}`;
-
-  const credentialScope = `${date}/${SERVICE}/tc3_request`;
-  const hashedCanonicalRequest = sha256(canonicalRequest);
-  const stringToSign =
-    `${ALGORITHM}\n` +
-    `${timestamp}\n` +
-    `${credentialScope}\n` +
-    `${hashedCanonicalRequest}`;
-
-  const secretDate = hmacSha256(`TC3${secretKey}`, date);
-  const secretService = hmacSha256(secretDate, SERVICE);
-  const secretSigning = hmacSha256(secretService, "tc3_request");
-  const signature = hmacSha256(secretSigning, stringToSign, "hex");
-
-  const authorization =
-    `${ALGORITHM} ` +
-    `Credential=${secretId}/${credentialScope}, ` +
-    `SignedHeaders=${signedHeaders}, ` +
-    `Signature=${signature}`;
-  return authorization;
-}
-
-function postJson(payload, headers) {
+function postJson(hostname, path, payload, headers) {
   return new Promise((resolve, reject) => {
     const req = https.request(
       {
-        hostname: ENDPOINT,
+        hostname,
         method: "POST",
-        path: "/",
+        path,
         headers,
       },
       (res) => {
@@ -105,48 +47,240 @@ function postJson(payload, headers) {
   });
 }
 
-function bodySnippet(body, maxLen) {
-  const s = body || "";
-  if (s.length <= maxLen) return s;
-  return s.slice(0, maxLen) + "...";
+/**
+ * 将混元/前端使用的 { role, content: string } 转为元器要求的 content 数组格式。
+ * 最多保留 40 条（元器限制）。
+ */
+function stripBom(s) {
+  return String(s || "").replace(/^\uFEFF/, "").trim();
+}
+
+function toYuanqiMessages(messages) {
+  const list = Array.isArray(messages) ? messages.slice(-40) : [];
+  return list.map((m) => {
+    const role = m.role === "assistant" ? "assistant" : "user";
+    const text =
+      typeof m.content === "string"
+        ? m.content
+        : m.content != null
+          ? JSON.stringify(m.content)
+          : "";
+    return {
+      role,
+      content: [{ type: "text", text: stripBom(text) }],
+    };
+  });
+}
+
+/**
+ * 元器要求 messages 中 user / assistant 严格交替；合并连续同角色，去掉空文本，且必须以 user 开头。
+ */
+function normalizeYuanqiMessages(messages) {
+  const mapped = toYuanqiMessages(messages);
+  const withText = mapped.filter((m) => {
+    const t = (m.content[0] && m.content[0].text) || "";
+    return t.length > 0;
+  });
+  const merged = [];
+  for (const m of withText) {
+    if (merged.length === 0) {
+      if (m.role === "assistant") {
+        continue;
+      }
+      merged.push({ role: m.role, content: [{ type: "text", text: m.content[0].text }] });
+      continue;
+    }
+    const last = merged[merged.length - 1];
+    if (last.role === m.role) {
+      last.content[0].text = `${last.content[0].text}\n${m.content[0].text}`;
+    } else {
+      merged.push({ role: m.role, content: [{ type: "text", text: m.content[0].text }] });
+    }
+  }
+  while (merged.length && merged[merged.length - 1].role === "assistant") {
+    merged.pop();
+  }
+  while (merged.length && merged[0].role === "assistant") {
+    merged.shift();
+  }
+  return merged;
+}
+
+function pickYuanqiErrorMessage(parsed, rawText) {
+  if (!parsed || typeof parsed !== "object") return bodySnippet(rawText, 500);
+  const err = parsed.error;
+  const candidates = [
+    err && typeof err === "object" && err.message,
+    typeof err === "string" ? err : "",
+    parsed.message,
+    parsed.msg,
+    parsed.detail,
+    parsed.reason,
+  ].filter((x) => typeof x === "string" && x);
+  const specific = candidates.find((x) => x && x !== "请求参数有误");
+  if (specific) return specific;
+  return candidates[0] || bodySnippet(rawText, 500);
+}
+
+/** 解析 stream:true 时的 SSE（data: {...} 行） */
+function parseSSEAssistantText(raw) {
+  let text = "";
+  let requestId = "";
+  let usage = {};
+  for (const line of String(raw || "").split(/\r?\n/)) {
+    if (!line.startsWith("data:")) continue;
+    const chunk = line.slice(5).trim();
+    if (!chunk || chunk === "[DONE]") continue;
+    try {
+      const j = JSON.parse(chunk);
+      if (j.id) requestId = j.id;
+      if (j.usage) usage = j.usage;
+      const ch0 = j.choices && j.choices[0];
+      if (!ch0 || !ch0.delta) continue;
+      const d = ch0.delta;
+      if (typeof d.content === "string" && d.content && (d.role === "assistant" || !d.role)) {
+        text += d.content;
+      }
+    } catch (_) {
+      /* skip bad line */
+    }
+  }
+  return { text, requestId, usage };
+}
+
+function buildYuanqiAttemptList(apiMode) {
+  const hunyuan = { hostname: "open.hunyuan.tencent.com", headers: { "X-Source": "openapi" } };
+  const yuanqi = { hostname: "yuanqi.tencent.com", headers: {} };
+  if (apiMode === "yuanqi") return [yuanqi];
+  if (apiMode === "hunyuan_open" || apiMode === "hunyuan") return [hunyuan];
+  return [hunyuan, yuanqi];
+}
+
+/**
+ * 依次尝试：各网关 × (stream:false, stream:true)。文档 curl 默认 stream:true，部分环境对 false 校验更严。
+ */
+function buildBodyForStreamMode(requestBase, streamMode) {
+  if (streamMode === "omit") {
+    const { assistant_id, user_id, messages, custom_variables } = requestBase;
+    const o = { assistant_id, user_id, messages };
+    if (custom_variables) o.custom_variables = custom_variables;
+    return o;
+  }
+  return { ...requestBase, stream: streamMode };
+}
+
+async function postYuanqiWithFallback(appkey, requestBase, apiMode) {
+  const hosts = buildYuanqiAttemptList(apiMode);
+  const streamModes = [false, true, "omit"];
+  let last = null;
+
+  for (const host of hosts) {
+    for (const streamMode of streamModes) {
+      const body = buildBodyForStreamMode(requestBase, streamMode);
+      const payload = JSON.stringify(body);
+      const len = Buffer.byteLength(payload, "utf8");
+      const headers = {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${appkey}`,
+        "Content-Length": len,
+        ...host.headers,
+      };
+      const attempt = `${host.hostname} stream=${streamMode === "omit" ? "omit" : streamMode}`;
+      const res = await postJson(host.hostname, YUANQI_PATH, payload, headers);
+      last = { ...res, attempt };
+      if (res.statusCode !== 200) {
+        console.error(`[hunyuanChat] ${attempt} HTTP ${res.statusCode}`, bodySnippet(res.body, 2000));
+        if (res.statusCode !== 400 && res.statusCode !== 404) {
+          return last;
+        }
+        continue;
+      }
+      const raw = res.body || "";
+      const trimmed = raw.trim();
+      const looksLikeSse =
+        trimmed.startsWith("data:") || trimmed.includes("\r\ndata:") || trimmed.includes("\ndata:");
+      if (looksLikeSse || streamMode === true) {
+        const { text, requestId, usage } = parseSSEAssistantText(raw);
+        if (text.length > 0) {
+          return {
+            statusCode: 200,
+            body: raw,
+            attempt,
+            parsedStream: true,
+            content: text,
+            requestId,
+            usage,
+          };
+        }
+      }
+      try {
+        const parsed = JSON.parse(trimmed || "{}");
+        last = { ...res, attempt, parsedJson: parsed };
+        const choices = parsed.choices || [];
+        const first = choices[0] || {};
+        const msg = first.message || {};
+        let content = typeof msg.content === "string" ? msg.content : "";
+        if (!content && Array.isArray(msg.content)) {
+          content = msg.content
+            .filter((p) => p && p.type === "text" && p.text)
+            .map((p) => p.text)
+            .join("");
+        }
+        if (content || first.finish_reason === "stop" || first.finish_reason === "length") {
+          return {
+            statusCode: 200,
+            body: raw,
+            attempt,
+            parsedStream: false,
+            parsed,
+            content,
+            first,
+          };
+        }
+      } catch (e) {
+        console.error(`[hunyuanChat] ${attempt} parse err`, e);
+      }
+    }
+  }
+  return last;
 }
 
 exports.main = async (event) => {
-  // 部署校验：日志里应出现本行；若仍是 Hello World，说明线上未更新为本文件
-  console.log("[hunyuanChat] MixCloud handler active");
+  console.log("[hunyuanChat] Yuanqi agent handler active");
 
-  // 控制台粘贴密钥时易带入首尾空格/换行，会导致混元返回 SecretId is not found
-  const secretId = String(process.env.TENCENT_SECRET_ID || "").trim();
-  const secretKey = String(process.env.TENCENT_SECRET_KEY || "").trim();
-  const model = (event && event.model) || process.env.HUNYUAN_MODEL || "hunyuan-lite";
-  const messages = (event && event.messages) || [];
-  const defaultTemperature = parseEnvFloat("HUNYUAN_TEMPERATURE", 0.7);
-  const temperature =
-    event && typeof event.temperature === "number" ? event.temperature : defaultTemperature;
-  const maxTokens = resolveMaxTokens(event);
+  const appkey = stripBom(process.env.YUANQI_APPKEY || "");
+  let assistantId = stripBom(
+    process.env.YUANQI_ASSISTANT_ID || process.env.YUANQI_APP_ID || ""
+  );
+  if (
+    process.env.YUANQI_ALLOW_EVENT_ASSISTANT_ID === "1" &&
+    event &&
+    typeof event.assistant_id === "string" &&
+    stripBom(event.assistant_id)
+  ) {
+    assistantId = stripBom(event.assistant_id);
+  }
 
-  // debug: 只返回是否读到环境变量，绝不回显密钥
   if (event && event.debug === true) {
     return {
       ok: true,
       debug: {
-        hasSecretId: Boolean(secretId),
-        hasSecretKey: Boolean(secretKey),
-        secretIdSuffix: secretId ? secretId.slice(-4) : "",
-        region: process.env.HUNYUAN_REGION || "ap-guangzhou",
-        model: model,
-        defaultTemperature,
-        resolvedMaxTokens: maxTokens,
+        hasAppkey: Boolean(appkey),
+        hasAssistantId: Boolean(assistantId),
+        assistantIdSuffix: assistantId ? assistantId.slice(-4) : "",
       },
     };
   }
 
-  if (!secretId || !secretKey) {
+  if (!appkey || !assistantId) {
     return {
       ok: false,
-      error: "云函数环境变量未配置 TENCENT_SECRET_ID / TENCENT_SECRET_KEY",
+      error:
+        "云函数环境变量未配置 YUANQI_APPKEY / YUANQI_ASSISTANT_ID（助手 ID 见元器：应用发布 → 体验链接中的 appid）",
     };
   }
+
+  const messages = (event && event.messages) || [];
   if (!Array.isArray(messages) || messages.length === 0) {
     return {
       ok: false,
@@ -154,97 +288,127 @@ exports.main = async (event) => {
     };
   }
 
-  const requestBody = {
-    Model: model,
-    Messages: messages.map((m) => ({
-      Role: m.role,
-      Content: m.content,
-    })),
-    Stream: false,
-    Temperature: temperature,
-  };
-  if (maxTokens !== undefined) {
-    requestBody.MaxTokens = maxTokens;
+  let userId = "";
+  try {
+    const wxContext = cloud.getWXContext();
+    userId = wxContext.OPENID || wxContext.FROM_OPENID || "";
+  } catch (_) {
+    userId = "";
+  }
+  if (event && event.user_id) {
+    userId = String(event.user_id);
+  }
+  if (!userId) {
+    userId = "guest";
+  }
+  userId = stripBom(userId).slice(0, 128) || "guest";
+
+  const yuanqiMessages = normalizeYuanqiMessages(messages);
+  if (!yuanqiMessages.length) {
+    return {
+      ok: false,
+      error: "有效消息为空：请检查对话内容或消息角色（需以用户消息开头）",
+    };
   }
 
-  const requestPayload = JSON.stringify(requestBody);
-
-  const timestamp = Math.floor(Date.now() / 1000);
-  const date = new Date(timestamp * 1000).toISOString().slice(0, 10);
-
-  const authorization = buildAuthorization({
-    secretId,
-    secretKey,
-    timestamp,
-    date,
-    requestPayload,
-  });
-
-  const headers = {
-    Authorization: authorization,
-    "Content-Type": "application/json; charset=utf-8",
-    Host: ENDPOINT,
-    "X-TC-Action": ACTION,
-    "X-TC-Timestamp": String(timestamp),
-    "X-TC-Version": VERSION,
-    "X-TC-Region": process.env.HUNYUAN_REGION || "ap-guangzhou",
+  const requestBase = {
+    assistant_id: assistantId,
+    user_id: userId,
+    messages: yuanqiMessages,
   };
+  if (event && event.custom_variables && typeof event.custom_variables === "object") {
+    requestBase.custom_variables = event.custom_variables;
+  }
+
+  const apiMode = stripBom(process.env.YUANQI_API_BASE || "");
 
   try {
-    const res = await postJson(requestPayload, headers);
+    const res = await postYuanqiWithFallback(appkey, requestBase, apiMode);
     const rawText = res.body || "";
 
     if (res.statusCode !== 200) {
       let detail = bodySnippet(rawText, 500);
       try {
         const errParsed = JSON.parse(rawText);
-        const errMsg =
-          (errParsed.Response && errParsed.Response.Error && errParsed.Response.Error.Message) ||
-          errParsed.message ||
-          detail;
-        detail = typeof errMsg === "string" ? errMsg : detail;
+        detail = pickYuanqiErrorMessage(errParsed, rawText);
       } catch (_) {
-        /* keep snippet */
+        /* keep detail from raw */
       }
+      const upstreamSnippet = bodySnippet(rawText, 800);
+      const traceMatch = rawText.match(/"traceId"\s*:\s*"([^"]+)"/);
+      const traceHint = traceMatch ? ` traceId=${traceMatch[1]}（可连同请求时间发给元器支持/队友核对 appid 与 appkey 是否同一应用）` : "";
       return {
         ok: false,
-        error: `HTTP ${res.statusCode}: ${detail}`,
+        error: `HTTP ${res.statusCode}: ${detail}${upstreamSnippet ? ` | 上游: ${upstreamSnippet}` : ""}${traceHint}`,
         httpStatus: res.statusCode,
+        upstreamBody: upstreamSnippet,
+        attempt: res.attempt || "",
+        hint:
+          res.statusCode === 400
+            ? "400 多为凭证与助手不匹配：YUANQI_ASSISTANT_ID 须为「应用发布→体验链接」的 appid；YUANQI_APPKEY 须为同一智能体「API 管理」中的 key；智能体需已发布且开通 API。可设 YUANQI_API_BASE=hunyuan_open 或 yuanqi 只测单一网关。"
+            : "",
       };
     }
 
-    let parsed;
-    try {
-      parsed = JSON.parse(rawText || "{}");
-    } catch (parseErr) {
+    if (res.parsedStream) {
+      const usage = res.usage || {};
+      return {
+        ok: true,
+        content: res.content || "",
+        reply: res.content || "",
+        promptTokens: usage.prompt_tokens != null ? Number(usage.prompt_tokens) : 0,
+        completionTokens: usage.completion_tokens != null ? Number(usage.completion_tokens) : 0,
+        totalTokens: usage.total_tokens != null ? Number(usage.total_tokens) : 0,
+        finishReason: "stop",
+        requestId: res.requestId || "",
+        raw: { streamed: true, attempt: res.attempt },
+      };
+    }
+
+    const parsed = res.parsed;
+    if (!parsed) {
       return {
         ok: false,
-        error: "响应不是合法 JSON: " + bodySnippet(rawText, 200),
+        error: "响应解析失败: " + bodySnippet(rawText, 200),
+        attempt: res.attempt || "",
       };
     }
 
-    const apiError = parsed.Response && parsed.Response.Error;
-    if (apiError) {
+    const first = res.first || (parsed.choices && parsed.choices[0]) || {};
+    const msg = first.message || {};
+    let content = typeof res.content === "string" ? res.content : "";
+    if (!content && typeof msg.content === "string") content = msg.content;
+    if (!content && Array.isArray(msg.content)) {
+      content = msg.content
+        .filter((p) => p && p.type === "text" && p.text)
+        .map((p) => p.text)
+        .join("");
+    }
+
+    const finishReason = first.finish_reason || "";
+    if (finishReason === "sensitive") {
       return {
         ok: false,
-        error: apiError.Message || "混元接口调用失败",
-        code: apiError.Code || "",
-        requestId: parsed.Response.RequestId || "",
+        error: "内容未通过审核",
+        finishReason,
+        requestId: parsed.id || "",
+      };
+    }
+    if (finishReason === "tool_fail") {
+      return {
+        ok: false,
+        error: "智能体工具调用失败",
+        finishReason,
+        requestId: parsed.id || "",
       };
     }
 
-    const resp = parsed.Response || {};
-    const choices = resp.Choices || [];
-    const content =
-      (choices[0] && choices[0].Message && choices[0].Message.Content) || "";
-    const finishReason = (choices[0] && choices[0].FinishReason) || "";
-    const usage = resp.Usage || {};
-    const promptTokens =
-      usage.PromptTokens != null ? Number(usage.PromptTokens) : 0;
+    const usage = parsed.usage || {};
+    const promptTokens = usage.prompt_tokens != null ? Number(usage.prompt_tokens) : 0;
     const completionTokens =
-      usage.CompletionTokens != null ? Number(usage.CompletionTokens) : 0;
-    const totalTokens = usage.TotalTokens != null ? Number(usage.TotalTokens) : 0;
-    const requestId = resp.RequestId || "";
+      usage.completion_tokens != null ? Number(usage.completion_tokens) : 0;
+    const totalTokens = usage.total_tokens != null ? Number(usage.total_tokens) : 0;
+    const requestId = parsed.id || "";
 
     return {
       ok: true,
@@ -255,7 +419,7 @@ exports.main = async (event) => {
       totalTokens,
       finishReason,
       requestId,
-      raw: resp,
+      raw: parsed,
     };
   } catch (err) {
     return {

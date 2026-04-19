@@ -1,7 +1,7 @@
 const app = getApp();
 
 Page({
-  data: {
+    data: {
     messages: [],
     inputText: "",
     isTyping: false,
@@ -13,7 +13,8 @@ Page({
       { id: 3, text: "生成我的文旅路线" },
       { id: 4, text: "AR场馆在哪里？" },
     ],
-    model: "hunyuan-lite",
+    /** 已由云函数 hunyuanChat 转发至腾讯元器智能体，此处参数仅作占位兼容 */
+    model: "yuanqi-agent",
     temperature: 0.7,
   },
 
@@ -100,9 +101,7 @@ Page({
       .map((m) => ({ role: m.role === "ai" ? "assistant" : "user", content: m.content }));
 
     const callData = {
-      model: this.data.model,
       messages,
-      temperature: this.data.temperature,
     };
 
     const cloudRes = await wx.cloud.callFunction({ name: "hunyuanChat", data: callData });
