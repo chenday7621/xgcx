@@ -2,64 +2,118 @@ const app = getApp();
 
 Page({
   data: {
-    preferenceOptions: {
-      teams: [{ id: 1, name: "EDG" }, { id: 2, name: "AG超玩会" }, { id: 3, name: "狼队" }, { id: 4, name: "TES" }],
-      styles: [{ id: "passionate", name: "热血" }, { id: "warm", name: "温情" }, { id: "inspirational", name: "励志" }],
-      cities: [{ id: 1, name: "上海" }, { id: 2, name: "成都" }, { id: 3, name: "北京" }],
-    },
-    selectedTeams: [],
-    selectedStyles: [],
-    selectedCities: [],
+    teams: [
+      { id: "1", name: "EDG", selected: false },
+      { id: "2", name: "AG超玩会", selected: false },
+      { id: "3", name: "狼队", selected: false },
+      { id: "4", name: "TES", selected: false },
+    ],
+    cities: [
+      { id: "1", name: "上海", selected: false },
+      { id: "2", name: "成都", selected: false },
+      { id: "3", name: "北京", selected: false },
+    ],
     isGenerating: false,
     currentRoute: null,
     myRoutes: [],
+    teamsIndex: -1,
+    cityIndex: -1,
   },
 
   onLoad() {
-    this.loadUserData();
-    const prefs = app.globalData.userPreferences || {};
-    this.setData({
-      selectedTeams: prefs.favoriteTeams || [],
-      selectedStyles: prefs.preferredStyle ? [prefs.preferredStyle] : [],
-      selectedCities: prefs.cities || [],
-    });
+    this.loadMyRoutes();
+    this.loadUserPreferences();
   },
 
   onShow() {
-    this.loadUserData();
+    this.loadMyRoutes();
   },
 
-  loadUserData() {
-    this.setData({ myRoutes: wx.getStorageSync("myRoutes") || [] });
+  loadMyRoutes() {
+    const routes = wx.getStorageSync("myRoutes") || [];
+    this.setData({ myRoutes: routes });
   },
 
-  togglePreference(e) {
-    const { type, id } = e.currentTarget.dataset;
-    const key = `selected${type.charAt(0).toUpperCase() + type.slice(1)}s`;
-    const current = [...this.data[key]];
-    const idx = current.indexOf(id);
-    if (idx > -1) current.splice(idx, 1);
-    else current.push(id);
-    this.setData({ [key]: current });
+  loadUserPreferences() {
+    const prefs = app.globalData.userPreferences || {};
+
+    const favoriteTeams = Array.isArray(prefs.favoriteTeams) ? prefs.favoriteTeams : [];
+    const citiesPref = Array.isArray(prefs.cities) ? prefs.cities : [];
+
+    const teams = this.data.teams.map((t) => ({
+      ...t,
+      selected: favoriteTeams.includes(t.id),
+    }));
+
+    const cities = this.data.cities.map((c) => ({
+      ...c,
+      selected: citiesPref.includes(c.id),
+    }));
+
+    this.setData({ teams, cities }, () => {
+      this.updateSelectionIndex();
+    });
+  },
+
+  updateSelectionIndex() {
+    const teamsIndex = this.data.teams.findIndex((t) => t.selected);
+    const cityIndex = this.data.cities.findIndex((c) => c.selected);
+    this.setData({ teamsIndex, cityIndex });
+  },
+
+  selectTeam(e) {
+    const id = e.currentTarget.dataset.id;
+    const teams = this.data.teams.map((t) => ({
+      ...t,
+      selected: t.id === id,
+    }));
+    this.setData({ teams }, () => {
+      this.updateSelectionIndex();
+    });
+  },
+
+  selectCity(e) {
+    const id = e.currentTarget.dataset.id;
+    const cities = this.data.cities.map((c) => ({
+      ...c,
+      selected: c.id === id,
+    }));
+    this.setData({ cities }, () => {
+      this.updateSelectionIndex();
+    });
   },
 
   async generateRoute() {
-    if (this.data.selectedTeams.length === 0) {
-      wx.showToast({ title: "请至少选择一个战队", icon: "none" });
+    const selectedTeams = this.data.teams.filter((t) => t.selected);
+    const selectedCities = this.data.cities.filter((c) => c.selected);
+
+    if (selectedTeams.length === 0) {
+      wx.showToast({ title: "请先选择一个战队", icon: "none" });
       return;
     }
+
+    if (selectedCities.length === 0) {
+      wx.showToast({ title: "请先选择一个城市", icon: "none" });
+      return;
+    }
+
     this.setData({ isGenerating: true });
-    const teamId = this.data.selectedTeams[0];
-    const team = this.data.preferenceOptions.teams.find((t) => t.id === teamId)?.name || "EDG";
-    const city = this.data.preferenceOptions.cities.find((c) => c.id === this.data.selectedCities[0])?.name || "上海";
+
+    const team = selectedTeams[0].name;
+    const city = selectedCities[0].name;
+
     const route = {
       id: Date.now(),
       title: `${team}专属文旅路线`,
+      city,
+      team,
       description: `${city} · 5个电竞打卡点`,
       nodes: [
         { id: 1, name: `${city}电竞中心`, description: "参观职业赛场并完成打卡" },
         { id: 2, name: `${team}战队展馆`, description: "了解战队历史和荣誉" },
         { id: 3, name: "选手应援墙", description: "留言支持喜欢的选手" },
+        { id: 4, name: "电竞主题餐厅", description: "品尝赛事主题美食" },
+        { id: 5, name: "周边商店", description: "购买正版周边纪念品" },
       ],
     };
     const myRoutes = [route, ...this.data.myRoutes].slice(0, 10);

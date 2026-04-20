@@ -1,16 +1,67 @@
 <view class="container">
-  <view class="hint">{{scanHint}}</view>
-  <button class="scan-btn" bindtap="toggleScan">{{isScanning ? "停止扫描" : "开始扫描"}}</button>
+  <view class="ar-stage">
+    <camera
+      wx:if="{{hasCameraAuth}}"
+      class="camera"
+      device-position="{{cameraPosition}}"
+      bindtap="placeHeroByTap"
+      frame-size="medium"
+    />
+    <view wx:else class="camera-unauthorized">
+      <view class="auth-title">需要摄像头授权才能开启AR</view>
+      <button class="authorize-btn" bindtap="requestCameraPermission">授权摄像头</button>
+    </view>
 
-  <view wx:if="{{recognizedTarget}}" class="card">
-    <view class="title">{{recognizedTarget.playerAvatar}} {{recognizedTarget.name}}</view>
-    <view class="desc">{{recognizedTarget.description}}</view>
-    <view class="line">战队：{{recognizedTarget.team}}</view>
-    <view class="line">羁绊：{{recognizedTarget.bond}}</view>
-    <view class="line">精神：{{recognizedTarget.spirit}}</view>
+    <view class="scan-overlay">
+      <view class="scan-line" wx:if="{{isScanning}}" />
+      <view class="scan-grid" />
+      <view class="scan-status">
+        <view class="status-title">AR状态：{{scanStatusText}}</view>
+        <view class="status-hint">{{scanHint}}</view>
+        <view class="progress-wrap">
+          <view class="progress-bar" style="width: {{scanProgress}}%;" />
+        </view>
+      </view>
+    </view>
+
+    <view
+      wx:if="{{heroVisible}}"
+      class="hero-projection"
+      style="left: {{heroPosition.xPercent}}%; top: {{heroPosition.yPercent}}%;"
+    >
+      <model
+        wx:if="{{selectedHero.modelUrl && !modelError}}"
+        class="hero-model"
+        src="{{selectedHero.modelUrl}}"
+        type="{{selectedHero.modelType || 'gltf'}}"
+        bindload="onModelLoad"
+        binderror="onModelError"
+        auto-rotate
+      />
+      <view wx:if="{{modelLoading && !modelError}}" class="hero-model-status">3D模型加载中...</view>
+      <view wx:if="{{modelError}}" class="hero-model-status error">{{modelError}}</view>
+      <view class="hero-title">{{selectedHero.name}}</view>
+      <view class="hero-subtitle">{{selectedHero.title}}</view>
+      <view class="hero-effect">{{selectedHero.effect}}</view>
+      <view class="hero-shadow" />
+    </view>
+  </view>
+
+  <view class="control-panel">
+    <button class="scan-btn" bindtap="toggleScan">{{isScanning ? "停止扫描" : "开始扫描"}}</button>
+    <view class="hero-picker-row">
+      <view class="hero-picker-label">选择英雄</view>
+      <picker mode="selector" range="{{heroes}}" range-key="name" value="{{heroIndex}}" bindchange="onHeroChange">
+        <view class="hero-picker-value">{{selectedHero ? selectedHero.name : "请选择"}}</view>
+      </picker>
+    </view>
+    <view class="btn-row">
+      <button class="small-btn" bindtap="toggleCameraPosition">切换镜头</button>
+      <button class="small-btn" bindtap="toggleHeroProjection">显示/隐藏英雄</button>
+    </view>
     <view class="btn-row">
       <button class="small-btn" bindtap="askAI">询问AI</button>
-      <button class="small-btn" bindtap="viewFullKG">查看图谱</button>
+      <button class="small-btn" bindtap="viewFullKG">英雄详情</button>
     </view>
   </view>
 

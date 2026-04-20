@@ -5,18 +5,190 @@
   position: relative;
 }
 
-.hint {
-  color: var(--text-secondary);
-  font-size: 26rpx;
-  margin-bottom: 24rpx;
-  display: flex;
-  align-items: center;
-  gap: 12rpx;
+.ar-stage {
+  position: relative;
+  width: 100%;
+  height: 760rpx;
+  border-radius: 28rpx;
+  overflow: hidden;
+  border: 2rpx solid rgba(255, 255, 255, 0.12);
+  background: #000;
 }
 
-.hint::before {
-  content: '💡';
+.camera {
+  width: 100%;
+  height: 100%;
+}
+
+.camera-unauthorized {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 24rpx;
+  background: radial-gradient(circle at 50% 35%, rgba(35, 35, 65, 0.8), rgba(10, 10, 26, 1));
+}
+
+.auth-title {
+  color: var(--text-primary);
+  font-size: 28rpx;
+}
+
+.authorize-btn {
+  width: 280rpx;
+  border-radius: 40rpx;
+  background: linear-gradient(135deg, var(--primary-red), #ff5533);
+  color: #fff;
+  font-size: 28rpx;
+}
+
+.scan-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.scan-grid {
+  position: absolute;
+  inset: 0;
+  background-image: linear-gradient(rgba(255, 255, 255, 0.08) 1rpx, transparent 1rpx),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.08) 1rpx, transparent 1rpx);
+  background-size: 54rpx 54rpx;
+}
+
+.scan-line {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  height: 4rpx;
+  background: linear-gradient(90deg, transparent, #00f0ff, transparent);
+  box-shadow: 0 0 16rpx #00f0ff;
+  animation: scanMove 1.8s linear infinite;
+}
+
+.scan-status {
+  position: absolute;
+  left: 24rpx;
+  right: 24rpx;
+  bottom: 24rpx;
+  border-radius: 16rpx;
+  padding: 18rpx 20rpx;
+  background: rgba(8, 10, 20, 0.72);
+  border: 1rpx solid rgba(255, 255, 255, 0.2);
+}
+
+.status-title {
+  color: #76f5ff;
   font-size: 24rpx;
+  font-weight: 600;
+}
+
+.status-hint {
+  margin-top: 8rpx;
+  color: var(--text-primary);
+  font-size: 24rpx;
+  line-height: 1.5;
+}
+
+.progress-wrap {
+  margin-top: 12rpx;
+  width: 100%;
+  height: 10rpx;
+  border-radius: 999rpx;
+  background: rgba(255, 255, 255, 0.16);
+  overflow: hidden;
+}
+
+.progress-bar {
+  height: 100%;
+  border-radius: 999rpx;
+  background: linear-gradient(90deg, #19ffca, #00d4ff);
+}
+
+.hero-projection {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  width: 270rpx;
+  padding: 18rpx;
+  text-align: center;
+  color: #fff;
+  border-radius: 20rpx;
+  background: linear-gradient(145deg, rgba(62, 85, 216, 0.85), rgba(43, 17, 124, 0.85));
+  border: 1rpx solid rgba(255, 255, 255, 0.28);
+  box-shadow: 0 0 28rpx rgba(43, 201, 255, 0.45);
+}
+
+.hero-model {
+  width: 230rpx;
+  height: 230rpx;
+  margin: 0 auto;
+}
+
+.hero-model-status {
+  margin-bottom: 8rpx;
+  font-size: 20rpx;
+  color: #ccefff;
+}
+
+.hero-model-status.error {
+  color: #ffd4d4;
+}
+
+.hero-title {
+  font-size: 34rpx;
+  font-weight: bold;
+}
+
+.hero-subtitle {
+  margin-top: 8rpx;
+  font-size: 24rpx;
+  color: #b0e6ff;
+}
+
+.hero-effect {
+  margin-top: 8rpx;
+  font-size: 22rpx;
+  color: #e8f6ff;
+}
+
+.hero-shadow {
+  margin: 10rpx auto 0;
+  width: 130rpx;
+  height: 16rpx;
+  border-radius: 999rpx;
+  background: rgba(0, 0, 0, 0.4);
+}
+
+.control-panel {
+  margin-top: 24rpx;
+}
+
+.hero-picker-row {
+  margin-top: 18rpx;
+  padding: 18rpx 20rpx;
+  border-radius: 18rpx;
+  background: rgba(8, 10, 20, 0.55);
+  border: 1rpx solid rgba(255, 255, 255, 0.14);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16rpx;
+}
+
+.hero-picker-label {
+  color: var(--text-secondary);
+  font-size: 24rpx;
+}
+
+.hero-picker-value {
+  color: var(--text-primary);
+  font-size: 26rpx;
+  padding: 10rpx 18rpx;
+  border-radius: 999rpx;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1rpx solid rgba(255, 255, 255, 0.16);
 }
 
 .scan-btn {
@@ -130,4 +302,13 @@
   transform: scale(0.98);
   border-color: var(--primary-red);
   box-shadow: 0 4rpx 16rpx rgba(230, 48, 40, 0.3);
+}
+
+@keyframes scanMove {
+  from {
+    top: 0;
+  }
+  to {
+    top: calc(100% - 4rpx);
+  }
 }

@@ -22,5 +22,10 @@
     "connectSocket": 60000,
     "uploadFile": 60000,
     "downloadFile": 60000
+  },
+  "permission": {
+    "scope.camera": {
+      "desc": "用于AR扫描周围环境并投影3D英雄"
+    }
   }
 }

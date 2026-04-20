@@ -104,7 +104,11 @@ Page({
       messages,
     };
 
-    const cloudRes = await wx.cloud.callFunction({ name: "hunyuanChat", data: callData });
+    const cloudRes = await wx.cloud.callFunction({
+      name: "hunyuanChat",
+      timeout: 60000,
+      data: callData,
+    });
     const result = (cloudRes && cloudRes.result) || {};
     if (!result.ok) {
       const reason = [result.code, result.error].filter(Boolean).join(": ");

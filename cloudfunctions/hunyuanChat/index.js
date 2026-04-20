@@ -17,7 +17,7 @@ function bodySnippet(body, maxLen) {
   return s.slice(0, maxLen) + "...";
 }
 
-function postJson(hostname, path, payload, headers) {
+function postJson(hostname, path, payload, headers, timeoutMs) {
   return new Promise((resolve, reject) => {
     const req = https.request(
       {
@@ -41,6 +41,11 @@ function postJson(hostname, path, payload, headers) {
       }
     );
 
+    if (timeoutMs && Number(timeoutMs) > 0) {
+      req.setTimeout(Number(timeoutMs), () => {
+        req.destroy(new Error(`upstream request timeout after ${timeoutMs}ms`));
+      });
+    }
     req.on("error", (err) => reject(err));
     req.write(payload);
     req.end();
@@ -171,11 +176,18 @@ function buildBodyForStreamMode(requestBase, streamMode) {
 
 async function postYuanqiWithFallback(appkey, requestBase, apiMode) {
   const hosts = buildYuanqiAttemptList(apiMode);
-  const streamModes = [false, true, "omit"];
+  // 云函数默认 30s 时限：减少组合爆炸 + 给上游请求加硬超时，避免整体超时。
+  const streamModes = ["omit", true];
+  const upstreamTimeoutMs = Number(process.env.YUANQI_UPSTREAM_TIMEOUT_MS || "9000");
+  const deadlineMs = Number(process.env.YUANQI_DEADLINE_MS || "26000");
+  const startedAt = Date.now();
   let last = null;
 
   for (const host of hosts) {
     for (const streamMode of streamModes) {
+      if (Date.now() - startedAt >= deadlineMs) {
+        return last;
+      }
       const body = buildBodyForStreamMode(requestBase, streamMode);
       const payload = JSON.stringify(body);
       const len = Buffer.byteLength(payload, "utf8");
@@ -186,7 +198,30 @@ async function postYuanqiWithFallback(appkey, requestBase, apiMode) {
         ...host.headers,
       };
       const attempt = `${host.hostname} stream=${streamMode === "omit" ? "omit" : streamMode}`;
-      const res = await postJson(host.hostname, YUANQI_PATH, payload, headers);
+      const remaining = Math.max(1000, deadlineMs - (Date.now() - startedAt));
+      const thisTimeoutMs = Math.min(upstreamTimeoutMs, remaining);
+      console.log(`[hunyuanChat] attempt=${attempt} timeoutMs=${thisTimeoutMs}`);
+      let res;
+      try {
+        res = await postJson(
+          host.hostname,
+          YUANQI_PATH,
+          payload,
+          headers,
+          thisTimeoutMs
+        );
+      } catch (e) {
+        const msg = e && e.message ? String(e.message) : "upstream request failed";
+        // 部分控制台可能吞掉 console.error，这里用 log 确保可见
+        console.log(`[hunyuanChat] request error attempt=${attempt} msg=${msg}`);
+        last = {
+          statusCode: 599,
+          body: JSON.stringify({ error: msg, attempt }),
+          attempt,
+          requestError: msg,
+        };
+        continue;
+      }
       last = { ...res, attempt };
       if (res.statusCode !== 200) {
         console.error(`[hunyuanChat] ${attempt} HTTP ${res.statusCode}`, bodySnippet(res.body, 2000));
