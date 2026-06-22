@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>电竞文旅 AI 网页版</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="desktop-shell">
+      <section class="phone-frame" aria-label="小程序手机预览">
+        <div class="phone-speaker"></div>
+        <div class="phone-screen">
+          <div id="app"></div>
+          <nav class="tabbar" aria-label="页面导航">
+            <button class="tab active" data-page="home">首页</button>
+            <button class="tab" data-page="chat">对话</button>
+            <button class="tab" data-page="ar">AR</button>
+            <button class="tab" data-page="journey">路线</button>
+            <button class="tab" data-page="profile">我的</button>
+          </nav>
+        </div>
+      </section>
+      <aside class="deploy-note" aria-label="部署说明">
+        <div class="note-kicker">Cloud Studio 网页版说明</div>
+        <h1>已改造成网页版 App</h1>
+        <p>
+          当前版本已部署为可在 Cloud Studio 中访问的网页 App，右侧手机框用于还原小程序的主要页面、流程和视觉效果。
+        </p>
+        <p>
+          但部分能力受网页环境限制，尤其是我们的核心功能 <strong>AR 相机打卡</strong>，需要依赖微信小程序的相机、AR 与设备能力，仅能在小程序端完整实现。
+        </p>
+        <p class="note-emphasis">建议直接观看演示视频，以获得最完整的功能体验。</p>
+        <figure class="qr-card">
+          <img src="./assets/demo-qr.png" alt="峡谷元帅AI体验版二维码" />
+        </figure>
+      </aside>
+    </main>
+    <script src="./app.js"></script>
+  </body>
+</html>
