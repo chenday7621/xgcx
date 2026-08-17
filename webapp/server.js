@@ -16,6 +16,7 @@ const mimeTypes = {
   ".png": "image/png",
   ".jpg": "image/jpeg",
   ".jpeg": "image/jpeg",
+  ".glb": "model/gltf-binary",
 };
 
 function stripBom(value) {

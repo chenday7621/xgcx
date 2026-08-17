@@ -140,9 +140,10 @@ function createAccessor(json, binary, accessorIndex, THREE) {
   return new THREE.BufferAttribute(values, itemSize, !!accessor.normalized);
 }
 
-function writeImageFile(bytes, index, mimeType) {
+function writeImageFile(bytes, index, mimeType, assetKey) {
   const extension = mimeType === "image/jpeg" ? "jpg" : "png";
-  const filePath = `${wx.env.USER_DATA_PATH}/ar-daji-texture-${index}.${extension}`;
+  const safeKey = String(assetKey || "model").replace(/[^a-zA-Z0-9_-]/g, "-");
+  const filePath = `${wx.env.USER_DATA_PATH}/ar-${safeKey}-texture-${index}.${extension}`;
   return new Promise((resolve, reject) => {
     wx.getFileSystemManager().writeFile({
       filePath,
@@ -162,7 +163,7 @@ function createCanvasImage(canvas, filePath) {
   });
 }
 
-async function createTextures(json, binary, THREE, canvas, onProgress) {
+async function createTextures(json, binary, THREE, canvas, onProgress, assetKey) {
   const imageDefs = json.images || [];
   const images = [];
   for (let index = 0; index < imageDefs.length; index += 1) {
@@ -172,7 +173,7 @@ async function createTextures(json, binary, THREE, canvas, onProgress) {
     }
     const view = json.bufferViews[definition.bufferView];
     const bytes = sliceBuffer(binary, Number(view.byteOffset || 0), Number(view.byteLength || 0));
-    const path = await writeImageFile(bytes, index, definition.mimeType || "image/png");
+    const path = await writeImageFile(bytes, index, definition.mimeType || "image/png", assetKey);
     images[index] = await createCanvasImage(canvas, path);
     if (onProgress) onProgress(15 + Math.round(((index + 1) / Math.max(1, imageDefs.length)) * 40));
   }
@@ -285,13 +286,13 @@ function createScene(json, binary, materials, THREE) {
   return root;
 }
 
-async function loadGLBScene(filePath, THREE, canvas, onProgress) {
+async function loadGLBScene(filePath, THREE, canvas, onProgress, assetKey) {
   if (!filePath || !THREE || !canvas) throw new Error("GLB 加载参数不完整");
   if (onProgress) onProgress(2);
   const arrayBuffer = await readFile(filePath);
   if (onProgress) onProgress(10);
   const { json, binary } = parseGLB(arrayBuffer);
-  const textures = await createTextures(json, binary, THREE, canvas, onProgress);
+  const textures = await createTextures(json, binary, THREE, canvas, onProgress, assetKey);
   if (onProgress) onProgress(62);
   const materials = createMaterials(json, textures, THREE);
   const scene = createScene(json, binary, materials, THREE);

@@ -6,7 +6,8 @@ const MODEL_MIN_SCALE = 0.02;
 const MODEL_MAX_SCALE = 10;
 const FALLBACK_NEAR_SCALE = 1.6;
 const FALLBACK_FAR_SCALE = 0.75;
-const MODEL_FILE_ID = "cloud://cloud1-d9gd58pgib59d7259.636c-cloud1-d9gd58pgib59d7259-1420321518/daji.glb";
+const DAJI_MODEL_FILE_ID = "cloud://cloud1-d9gd58pgib59d7259.636c-cloud1-d9gd58pgib59d7259-1420321518/daji.glb";
+const JIALUO_MODEL_FILE_ID = "cloud://cloud1-d9gd58pgib59d7259.636c-cloud1-d9gd58pgib59d7259-1420321518/jialuo-v1.glb";
 
 Page({
   data: {
@@ -26,7 +27,16 @@ Page({
         title: "女仆咖啡",
         effect: "妲己3D模型",
         intro: "王者荣耀英雄妲己的AR实景投影模型。",
-        modelFileId: MODEL_FILE_ID,
+        modelFileId: DAJI_MODEL_FILE_ID,
+      },
+      {
+        id: "hero-jialuo",
+        name: "伽罗",
+        title: "破魔之箭",
+        effect: "伽罗3D模型",
+        intro: "王者荣耀英雄伽罗的AR实景投影模型。",
+        modelFileId: JIALUO_MODEL_FILE_ID,
+        modelScaleMultiplier: 100,
       },
     ],
     heroIndex: 0,
@@ -51,7 +61,8 @@ Page({
     this.canvasReady = false;
     this.glReady = false;
     this.planeAnchors = [];
-    this.modelTempPath = "";
+    this.modelTempPaths = {};
+    this.modelLoadToken = 0;
     this._deviceMotionListening = false;
     this._deviceMotionHandler = null;
     this._fallbackYaw = 0;
@@ -222,7 +233,8 @@ Page({
       this.glReady = true;
       this.startDeviceMotionFallback();
       this.startRenderLoop();
-      this.setData({ scanHint: "AR渲染引擎就绪，正在准备妲己模型", modelError: "" });
+      const heroName = this.data.selectedHero ? this.data.selectedHero.name : "英雄";
+      this.setData({ scanHint: `AR渲染引擎就绪，正在准备${heroName}模型`, modelError: "" });
       this.ensureSelectedHeroModel();
     } catch (error) {
       console.error("[AR] Three.js init failed", error);
@@ -488,50 +500,104 @@ Page({
         ? compatible
           ? "已进入兼容模式，点击显示英雄进行投影"
           : "平面识别成功，点击显示英雄进行空间投影"
-        : "平面已识别，妲己模型仍在加载中",
+        : `平面已识别，${this.data.selectedHero ? this.data.selectedHero.name : "英雄"}模型仍在加载中`,
     });
     if (!this.data.modelReady && !this.data.modelLoading) this.ensureSelectedHeroModel();
     // 原生AR模式必须保持VKSession运行，供相机矩阵和Hit Test持续使用。
   },
 
-  getHeroByIndex() {
-    return this.data.heroes[0];
+  getHeroByIndex(index) {
+    const heroes = this.data.heroes || [];
+    const safeIndex = Math.max(0, Math.min(heroes.length - 1, Number(index) || 0));
+    return heroes[safeIndex] || heroes[0];
   },
 
   ensureSelectedHeroModel() {
-    if (this.arModel || this.data.modelLoading) return Promise.resolve(!!this.arModel);
+    const hero = this.data.selectedHero || this.getHeroByIndex(this.data.heroIndex);
+    if (this.arModel && this.arModelHeroId === hero.id) return Promise.resolve(true);
+    if (this.data.modelLoading) return Promise.resolve(false);
     if (!this.glReady) return Promise.resolve(false);
-    const hero = this.data.selectedHero || this.getHeroByIndex(0);
-    this.setData({ modelLoading: true, modelReady: false, modelError: "", scanHint: "正在从云存储下载妲己模型..." });
+    const loadToken = ++this.modelLoadToken;
+    this.setData({ modelLoading: true, modelReady: false, modelError: "", scanHint: `正在从云存储下载${hero.name}模型...` });
     this.startModelLoadTimer();
 
-    const obtainPath = this.modelTempPath
-      ? Promise.resolve(this.modelTempPath)
-      : wx.cloud.downloadFile({ fileID: hero.modelFileId }).then((result) => {
-          if (!result || !result.tempFilePath) throw new Error("云存储返回的模型路径为空");
-          this.modelTempPath = result.tempFilePath;
-          return result.tempFilePath;
-        });
+    const cachedPath = this.modelTempPaths[hero.id];
+    const obtainPath = cachedPath
+      ? Promise.resolve(cachedPath)
+      : this.downloadModelThroughCloudFunction(hero).then((tempFilePath) => {
+        this.modelTempPaths[hero.id] = tempFilePath;
+        return tempFilePath;
+      });
 
     return obtainPath
-      .then((filePath) => this.loadModelFromPath(filePath))
+      .then((filePath) => {
+        if (loadToken !== this.modelLoadToken) return false;
+        return this.loadModelFromPath(filePath, hero, loadToken);
+      })
       .catch((error) => {
+        if (loadToken !== this.modelLoadToken) return false;
         console.error("[AR] model download/load failed", error);
         this.clearModelLoadTimer();
         this.setData({
           modelLoading: false,
           modelReady: false,
-          modelError: `妲己模型加载失败：${error.message || error}`,
+          modelError: `${hero.name}模型加载失败：${error.message || error}`,
           scanHint: "模型加载失败，请检查云存储文件权限",
         });
         return false;
       });
   },
 
-  loadModelFromPath(filePath) {
+  downloadModelThroughCloudFunction(hero) {
+    this.setData({ scanHint: `正在申请${hero.name}模型临时下载地址...` });
+    return wx.cloud
+      .callFunction({ name: "getArModelUrl", data: { modelId: hero.id } })
+      .then((response) => {
+        const payload = response && response.result;
+        if (!payload || !payload.ok || !payload.tempFileURL) {
+          const detail = payload && (payload.error || payload.errMsg);
+          throw new Error(detail || "云函数没有返回模型下载地址");
+        }
+        if (payload.modelId !== hero.id || payload.fileID !== hero.modelFileId) {
+          throw new Error("云函数返回了非预期的模型文件");
+        }
+        this.setData({ scanHint: `正在下载${hero.name}模型...` });
+        return this.downloadSignedModel(payload.tempFileURL);
+      });
+  },
+
+  downloadSignedModel(url) {
+    return new Promise((resolve, reject) => {
+      wx.downloadFile({
+        url,
+        success: (result) => {
+          const statusCode = Number(result && result.statusCode);
+          if (statusCode >= 200 && statusCode < 300 && result.tempFilePath) {
+            resolve(result.tempFilePath);
+            return;
+          }
+          reject(new Error(`模型下载失败，HTTP ${statusCode || "未知"}`));
+        },
+        fail: (error) => {
+          const message = error && error.errMsg ? error.errMsg : String(error || "模型下载失败");
+          if (/domain|合法域名/i.test(message)) {
+            reject(new Error(`模型下载域名未配置：${message}`));
+            return;
+          }
+          reject(new Error(message));
+        },
+      });
+    });
+  },
+
+  loadModelFromPath(filePath, hero, loadToken) {
     return loadGLBScene(filePath, this.THREE, this.canvas, (progress) => {
-      this.setData({ scanHint: `妲己模型加载中 ${progress}%` });
-    }).then(({ scene }) => {
+      if (loadToken === this.modelLoadToken) this.setData({ scanHint: `${hero.name}模型加载中 ${progress}%` });
+    }, hero.id).then(({ scene }) => {
+      if (loadToken !== this.modelLoadToken) {
+        this.disposeObject3D(scene);
+        return false;
+      }
       if (this.arModel && this.scene) this.scene.remove(this.arModel);
       const THREE = this.THREE;
       const root = scene;
@@ -539,7 +605,11 @@ Page({
       const size = box.getSize(new THREE.Vector3());
       const maxDimension = Math.max(size.x, size.y, size.z);
       if (!Number.isFinite(maxDimension) || maxDimension <= 0.0001) throw new Error("模型尺寸数据无效");
-      const scale = Math.max(MODEL_MIN_SCALE, Math.min(MODEL_MAX_SCALE, MODEL_TARGET_SIZE / maxDimension));
+      const scaleMultiplier = Number(hero.modelScaleMultiplier || 1);
+      const scale = Math.max(
+        MODEL_MIN_SCALE,
+        Math.min(MODEL_MAX_SCALE, (MODEL_TARGET_SIZE / maxDimension) * scaleMultiplier)
+      );
       root.scale.setScalar(scale);
       const alignedBox = new THREE.Box3().setFromObject(root);
       const center = alignedBox.getCenter(new THREE.Vector3());
@@ -549,13 +619,14 @@ Page({
       root.visible = false;
       this.scene.add(root);
       this.arModel = root;
+      this.arModelHeroId = hero.id;
       this._placedBaseScale = root.scale.x || scale;
       this.clearModelLoadTimer();
       this.setData({
         modelLoading: false,
         modelReady: true,
         modelError: "",
-        scanHint: this.data.projectionReady ? "妲己模型已就绪，点击显示英雄进行投影" : "妲己模型已就绪，请开始扫描",
+        scanHint: this.data.projectionReady ? `${hero.name}模型已就绪，点击显示英雄进行投影` : `${hero.name}模型已就绪，请开始扫描`,
       });
       return true;
     });
@@ -565,7 +636,8 @@ Page({
     this.clearModelLoadTimer();
     this.modelLoadTimer = setTimeout(() => {
       if (!this.data.modelReady) {
-        this.setData({ modelLoading: false, modelError: "模型加载超时，请重新进入页面", scanHint: "妲己模型加载超时" });
+        const heroName = this.data.selectedHero ? this.data.selectedHero.name : "英雄";
+        this.setData({ modelLoading: false, modelError: "模型加载超时，请重新选择英雄", scanHint: `${heroName}模型加载超时` });
       }
     }, 45000);
   },
@@ -573,6 +645,20 @@ Page({
   clearModelLoadTimer() {
     if (this.modelLoadTimer) clearTimeout(this.modelLoadTimer);
     this.modelLoadTimer = null;
+  },
+
+  disposeObject3D(root) {
+    if (!root || typeof root.traverse !== "function") return;
+    root.traverse((object) => {
+      if (object.geometry && typeof object.geometry.dispose === "function") object.geometry.dispose();
+      const materials = Array.isArray(object.material) ? object.material : object.material ? [object.material] : [];
+      materials.forEach((material) => {
+        ["map", "normalMap", "roughnessMap", "metalnessMap", "emissiveMap", "alphaMap"].forEach((key) => {
+          if (material[key] && typeof material[key].dispose === "function") material[key].dispose();
+        });
+        if (typeof material.dispose === "function") material.dispose();
+      });
+    });
   },
 
   placeHeroByTap(event) {
@@ -643,17 +729,19 @@ Page({
       heroPlaced: true,
       heroVisible: true,
       scanStatusText: placed ? "空间投影" : "兼容投影",
-      scanHint: "妲己已完成AR投影，点击画面可重新定位",
+      scanHint: `${this.data.selectedHero.name}已完成AR投影，点击画面可重新定位`,
     });
     if (firstPlacement) this.saveToHistory(this.buildHistoryEntry());
   },
 
   buildHistoryEntry() {
+    const hero = this.data.selectedHero || this.getHeroByIndex(this.data.heroIndex);
     return {
       id: Date.now(),
-      name: "妲己投影",
-      description: "女仆咖啡 · AR实景",
-      playerAvatar: "🦊",
+      heroId: hero.id,
+      name: `${hero.name}投影`,
+      description: `${hero.title} · AR实景`,
+      playerAvatar: hero.id === "hero-daji" ? "🦊" : "🏹",
       team: "王者荣耀",
       bond: "AR互动",
       spirit: "探索",
@@ -687,11 +775,34 @@ Page({
     }
     const visible = !this.data.heroVisible;
     if (this.arModel) this.arModel.visible = visible;
-    this.setData({ heroVisible: visible, scanHint: visible ? "妲己投影已显示" : "妲己投影已隐藏" });
+    const heroName = this.data.selectedHero.name;
+    this.setData({ heroVisible: visible, scanHint: visible ? `${heroName}投影已显示` : `${heroName}投影已隐藏` });
   },
 
-  onHeroChange() {
-    this.setData({ heroIndex: 0, selectedHero: this.getHeroByIndex(0) });
+  onHeroChange(event) {
+    const heroIndex = Number(event && event.detail ? event.detail.value : 0) || 0;
+    const selectedHero = this.getHeroByIndex(heroIndex);
+    if (this.data.selectedHero && selectedHero.id === this.data.selectedHero.id) return;
+
+    this.modelLoadToken += 1;
+    this.clearModelLoadTimer();
+    if (this.arModel && this.scene) {
+      this.scene.remove(this.arModel);
+      this.disposeObject3D(this.arModel);
+    }
+    this.arModel = null;
+    this.arModelHeroId = "";
+    this.setData({
+      heroIndex,
+      selectedHero,
+      modelLoading: false,
+      modelReady: false,
+      modelError: "",
+      heroVisible: false,
+      heroPlaced: false,
+      scanHint: `已选择${selectedHero.name}，正在准备3D模型`,
+    });
+    this.ensureSelectedHeroModel();
   },
 
   saveToHistory(target) {
@@ -715,20 +826,22 @@ Page({
   },
 
   askAI() {
-    const question = "请介绍英雄妲己（女仆咖啡）的背景、技能风格和玩法建议";
+    const hero = this.data.selectedHero || this.getHeroByIndex(this.data.heroIndex);
+    const question = `请介绍英雄${hero.name}（${hero.title}）的背景、技能风格和玩法建议`;
     app.safeNavigateTo(`/pages/chat/chat?prefill=${encodeURIComponent(question)}`).catch((error) => {
       console.error("navigate askAI failed", error);
     });
   },
 
   viewFullKG() {
+    const hero = this.data.selectedHero || this.getHeroByIndex(this.data.heroIndex);
     wx.showModal({
-      title: "妲己 · 英雄档案",
-      content: `称号：女仆咖啡\n特性：妲己3D模型\n简介：王者荣耀英雄妲己的AR实景投影模型。\n3D模型：${this.data.modelReady ? "已加载" : this.data.modelError ? "加载失败" : "加载中"}\nAR状态：${this.data.heroPlaced ? "已投影" : "待投影"}`,
+      title: `${hero.name} · 英雄档案`,
+      content: `称号：${hero.title}\n特性：${hero.effect}\n简介：${hero.intro}\n3D模型：${this.data.modelReady ? "已加载" : this.data.modelError ? "加载失败" : "加载中"}\nAR状态：${this.data.heroPlaced ? "已投影" : "待投影"}`,
       confirmText: "生成玩法建议",
       success: (result) => {
         if (!result.confirm) return;
-        app.safeNavigateTo(`/pages/chat/chat?prefill=${encodeURIComponent("根据英雄妲己给我一套适合新手的出装、连招和对局思路")}`).catch((error) => {
+        app.safeNavigateTo(`/pages/chat/chat?prefill=${encodeURIComponent(`根据英雄${hero.name}给我一套适合新手的出装、连招和对局思路`)}`).catch((error) => {
           console.error("navigate to chat failed", error);
         });
       },
@@ -740,7 +853,10 @@ Page({
     this.stopVKSession();
     this.stopScanProgress();
     this.stopDeviceMotionFallback();
-    if (this.arModel && this.scene) this.scene.remove(this.arModel);
+    if (this.arModel && this.scene) {
+      this.scene.remove(this.arModel);
+      this.disposeObject3D(this.arModel);
+    }
     this.arModel = null;
     if (this.renderer && typeof this.renderer.dispose === "function") this.renderer.dispose();
     this.renderer = null;

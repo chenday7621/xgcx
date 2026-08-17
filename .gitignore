@@ -5,3 +5,4 @@ cloudfunctions/*/node_modules/
 .env
 .env.*
 *.log
+weapp-demo/
