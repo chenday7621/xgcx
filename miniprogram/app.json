@@ -2,9 +2,16 @@
   "pages": [
     "pages/index/index",
     "pages/chat/chat",
-    "pages/ar/ar",
     "pages/journey/journey",
     "pages/profile/profile"
+  ],
+  "subPackages": [
+    {
+      "root": "ar-package",
+      "pages": [
+        "pages/ar/ar"
+      ]
+    }
   ],
   "usingComponents": {},
   "window": {

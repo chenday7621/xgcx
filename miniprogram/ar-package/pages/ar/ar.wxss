@@ -114,11 +114,25 @@ page {
 }
 
 .camera {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.canvas {
+  position: absolute;
+  z-index: 2;
+  inset: 0;
   width: 100%;
   height: 100%;
 }
 
 .camera-unauthorized {
+  position: absolute;
+  z-index: 2;
+  inset: 0;
   width: 100%;
   height: 100%;
   display: flex;
@@ -250,6 +264,12 @@ page {
   border-radius: 20rpx;
   background: linear-gradient(145deg, rgba(10, 39, 91, 0.9), rgba(15, 8, 59, 0.88));
   box-shadow: 0 0 30rpx rgba(24, 142, 255, 0.58);
+}
+
+.model-message {
+  left: 50%;
+  top: 50%;
+  box-sizing: border-box;
 }
 
 .hero-model {

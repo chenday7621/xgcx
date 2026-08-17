@@ -58,7 +58,7 @@
           <view class="entry-chevron">⌄</view>
         </view>
       </view>
-      <view class="entry-card entry-ar" data-path="/pages/ar/ar" bindtap="onEntryTap">
+      <view class="entry-card entry-ar" data-path="/ar-package/pages/ar/ar" bindtap="onEntryTap">
         <image class="entry-bg" src="/imgs/home/bg-ar.jpg" mode="aspectFill"></image>
         <view class="entry-icon-zone">
           <view class="feature-icon-crop"><image class="feature-sprite sprite-ar" src="/imgs/home/feature-icons.png" mode="widthFix"></image></view>

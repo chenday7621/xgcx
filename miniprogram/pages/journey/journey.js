@@ -126,7 +126,7 @@ Page({
   },
 
   openAR() {
-    app.safeNavigateTo("/pages/ar/ar").catch((err) => {
+    app.safeNavigateTo("/ar-package/pages/ar/ar").catch((err) => {
       console.error("navigate to ar failed", err);
     });
   },

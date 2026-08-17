@@ -13,8 +13,14 @@
           wx:if="{{hasCameraAuth}}"
           class="camera"
           device-position="{{cameraPosition}}"
-          bindtap="placeHeroByTap"
           frame-size="medium"
+        />
+        <canvas
+          wx:if="{{hasCameraAuth}}"
+          id="ar-canvas"
+          class="canvas"
+          type="webgl"
+          bindtap="placeHeroByTap"
         />
         <view wx:else class="camera-unauthorized">
           <view class="auth-title">需要摄像头授权才能开启AR</view>
@@ -23,26 +29,9 @@
           </button>
         </view>
 
-        <view
-          wx:if="{{heroVisible}}"
-          class="hero-projection"
-          style="left: {{heroPosition.xPercent}}%; top: {{heroPosition.yPercent}}%;"
-        >
-          <model
-            wx:if="{{selectedHero.modelUrl && !modelError}}"
-            class="hero-model"
-            src="{{selectedHero.modelUrl}}"
-            type="{{selectedHero.modelType || 'gltf'}}"
-            bindload="onModelLoad"
-            binderror="onModelError"
-            auto-rotate
-          />
+        <view wx:if="{{modelLoading || modelError}}" class="hero-projection model-message">
           <view wx:if="{{modelLoading && !modelError}}" class="hero-model-status">3D模型加载中...</view>
           <view wx:if="{{modelError}}" class="hero-model-status error">{{modelError}}</view>
-          <view class="hero-title">{{selectedHero.name}}</view>
-          <view class="hero-subtitle">{{selectedHero.title}}</view>
-          <view class="hero-effect">{{selectedHero.effect}}</view>
-          <view class="hero-shadow" />
         </view>
       </view>
       <image class="scan-frame-image" src="/imgs/ar/scan-frame.png" mode="scaleToFill" />
