@@ -1,6 +1,6 @@
 App({
   globalData: {
-    env: "cloud1-9gev7gnfc5c48e53",
+    env: "cloud1-d9gd58pgib59d7259",
     emotion: "neutral",
     userPreferences: {
       favoriteTeams: [],

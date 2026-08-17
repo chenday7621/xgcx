@@ -1,4 +1,5 @@
 {
   "navigationBarTitleText": "AR扫描",
+  "navigationStyle": "custom",
   "usingComponents": {}
 }

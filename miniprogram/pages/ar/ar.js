@@ -65,6 +65,15 @@ Page({
     this.clearScanSafetyTimeout();
   },
 
+  goBack() {
+    const pages = getCurrentPages();
+    if (pages.length > 1) {
+      wx.navigateBack();
+      return;
+    }
+    wx.reLaunch({ url: "/pages/index/index" });
+  },
+
   checkPermissionAndInit() {
     wx.getSetting({
       success: (res) => {

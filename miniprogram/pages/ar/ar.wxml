@@ -1,74 +1,103 @@
 <view class="container">
-  <view class="ar-stage">
-    <camera
-      wx:if="{{hasCameraAuth}}"
-      class="camera"
-      device-position="{{cameraPosition}}"
-      bindtap="placeHeroByTap"
-      frame-size="medium"
-    />
-    <view wx:else class="camera-unauthorized">
-      <view class="auth-title">需要摄像头授权才能开启AR</view>
-      <button class="authorize-btn" bindtap="requestCameraPermission">授权摄像头</button>
-    </view>
+  <view class="page-stars" />
 
-    <view class="scan-overlay">
-      <view class="scan-line" wx:if="{{isScanning}}" />
-      <view class="scan-grid" />
+  <view class="custom-nav">
+    <view class="nav-back" bindtap="goBack" aria-label="返回">‹</view>
+    <view class="nav-title">AR扫描</view>
+  </view>
+
+  <view class="page-content">
+    <view class="ar-frame-wrap">
+      <view class="ar-stage">
+        <camera
+          wx:if="{{hasCameraAuth}}"
+          class="camera"
+          device-position="{{cameraPosition}}"
+          bindtap="placeHeroByTap"
+          frame-size="medium"
+        />
+        <view wx:else class="camera-unauthorized">
+          <view class="auth-title">需要摄像头授权才能开启AR</view>
+          <button class="authorize-btn" bindtap="requestCameraPermission">
+            <image class="authorize-btn-image" src="/imgs/ar/authorize-button.png" mode="widthFix" />
+          </button>
+        </view>
+
+        <view
+          wx:if="{{heroVisible}}"
+          class="hero-projection"
+          style="left: {{heroPosition.xPercent}}%; top: {{heroPosition.yPercent}}%;"
+        >
+          <model
+            wx:if="{{selectedHero.modelUrl && !modelError}}"
+            class="hero-model"
+            src="{{selectedHero.modelUrl}}"
+            type="{{selectedHero.modelType || 'gltf'}}"
+            bindload="onModelLoad"
+            binderror="onModelError"
+            auto-rotate
+          />
+          <view wx:if="{{modelLoading && !modelError}}" class="hero-model-status">3D模型加载中...</view>
+          <view wx:if="{{modelError}}" class="hero-model-status error">{{modelError}}</view>
+          <view class="hero-title">{{selectedHero.name}}</view>
+          <view class="hero-subtitle">{{selectedHero.title}}</view>
+          <view class="hero-effect">{{selectedHero.effect}}</view>
+          <view class="hero-shadow" />
+        </view>
+      </view>
+      <image class="scan-frame-image" src="/imgs/ar/scan-frame.png" mode="scaleToFill" />
       <view class="scan-status">
-        <view class="status-title">AR状态：{{scanStatusText}}</view>
-        <view class="status-hint">{{scanHint}}</view>
-        <view class="progress-wrap">
-          <view class="progress-bar" style="width: {{scanProgress}}%;" />
+        <image class="status-frame-image" src="/imgs/ar/status-frame.png" mode="scaleToFill" />
+        <view class="status-content">
+          <view class="status-title">AR状态：{{scanStatusText}}</view>
+          <view class="status-hint">{{scanHint}}</view>
+          <view class="progress-wrap">
+            <view class="progress-bar" style="width: {{scanProgress}}%;" />
+          </view>
         </view>
       </view>
     </view>
 
-    <view
-      wx:if="{{heroVisible}}"
-      class="hero-projection"
-      style="left: {{heroPosition.xPercent}}%; top: {{heroPosition.yPercent}}%;"
-    >
-      <model
-        wx:if="{{selectedHero.modelUrl && !modelError}}"
-        class="hero-model"
-        src="{{selectedHero.modelUrl}}"
-        type="{{selectedHero.modelType || 'gltf'}}"
-        bindload="onModelLoad"
-        binderror="onModelError"
-        auto-rotate
-      />
-      <view wx:if="{{modelLoading && !modelError}}" class="hero-model-status">3D模型加载中...</view>
-      <view wx:if="{{modelError}}" class="hero-model-status error">{{modelError}}</view>
-      <view class="hero-title">{{selectedHero.name}}</view>
-      <view class="hero-subtitle">{{selectedHero.title}}</view>
-      <view class="hero-effect">{{selectedHero.effect}}</view>
-      <view class="hero-shadow" />
-    </view>
-  </view>
+    <view class="control-panel">
+      <view class="scan-btn-row">
+        <view class="scan-btn" bindtap="toggleScan">
+          <image
+            class="scan-btn-image"
+            src="{{isScanning ? '/imgs/ar/scan-button-blank.png' : '/imgs/ar/scan-button.png'}}"
+            mode="widthFix"
+          />
+          <view wx:if="{{isScanning}}" class="scan-btn-text">停止扫描</view>
+        </view>
+      </view>
 
-  <view class="control-panel">
-    <button class="scan-btn" bindtap="toggleScan">{{isScanning ? "停止扫描" : "开始扫描"}}</button>
-    <view class="hero-picker-row">
-      <view class="hero-picker-label">选择英雄</view>
-      <picker mode="selector" range="{{heroes}}" range-key="name" value="{{heroIndex}}" bindchange="onHeroChange">
-        <view class="hero-picker-value">{{selectedHero ? selectedHero.name : "请选择"}}</view>
-      </picker>
-    </view>
-    <view class="btn-row">
-      <button class="small-btn" bindtap="toggleCameraPosition">切换镜头</button>
-      <button class="small-btn" bindtap="toggleHeroProjection">显示/隐藏英雄</button>
-    </view>
-    <view class="btn-row">
-      <button class="small-btn" bindtap="askAI">询问AI</button>
-      <button class="small-btn" bindtap="viewFullKG">英雄详情</button>
-    </view>
-  </view>
+      <view class="hero-picker-row">
+        <view class="hero-picker-label">选择英雄</view>
+        <picker mode="selector" range="{{heroes}}" range-key="name" value="{{heroIndex}}" bindchange="onHeroChange">
+          <view class="hero-picker-value">{{selectedHero ? selectedHero.name : "请选择"}}</view>
+        </picker>
+      </view>
 
-  <view wx:if="{{scanHistory.length > 0}}" class="history">
-    <view class="history-title">识别历史</view>
-    <view wx:for="{{scanHistory}}" wx:key="id" class="history-item" data-target="{{item}}" bindtap="onHistoryTap">
-      {{item.playerAvatar}} {{item.name}} · {{item.time}}
+      <view class="action-grid">
+        <button class="action-btn" bindtap="toggleCameraPosition">
+          <image src="/imgs/ar/action-camera.png" mode="widthFix" />
+        </button>
+        <button class="action-btn" bindtap="toggleHeroProjection">
+          <image src="/imgs/ar/action-hero.png" mode="widthFix" />
+        </button>
+        <button class="action-btn" bindtap="askAI">
+          <image src="/imgs/ar/action-ai.png" mode="widthFix" />
+        </button>
+        <button class="action-btn" bindtap="viewFullKG">
+          <image src="/imgs/ar/action-detail.png" mode="widthFix" />
+        </button>
+      </view>
+    </view>
+
+    <view wx:if="{{scanHistory.length > 0}}" class="history">
+      <view class="history-title">识别历史</view>
+      <view wx:for="{{scanHistory}}" wx:key="id" class="history-item" data-target="{{item}}" bindtap="onHistoryTap">
+        {{item.playerAvatar}} {{item.name}} · {{item.time}}
+      </view>
     </view>
   </view>
 </view>

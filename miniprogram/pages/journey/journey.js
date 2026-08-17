@@ -3,15 +3,15 @@ const app = getApp();
 Page({
   data: {
     teams: [
-      { id: "1", name: "EDG", selected: false },
-      { id: "2", name: "AG超玩会", selected: false },
-      { id: "3", name: "狼队", selected: false },
-      { id: "4", name: "TES", selected: false },
+      { id: "1", name: "EDG", image: "/imgs/home/team-edg.png", background: "/imgs/home/bg-edg.jpg", bonds: "Meiko&Scout", spirit: "团结拼搏", theme: "edg", selected: false },
+      { id: "2", name: "AG超玩会", image: "/imgs/home/team-ag.png", background: "/imgs/home/bg-ag.jpg", bonds: "一诺&Cat", spirit: "永不言弃", theme: "ag", selected: false },
+      { id: "3", name: "狼队", image: "/imgs/home/team-wolves.png", background: "/imgs/home/bg-wolves.png", bonds: "Fly&胖皇", spirit: "坚韧不拔", theme: "wolves", selected: false },
+      { id: "4", name: "TES", image: "/imgs/home/team-tes.png", background: "/imgs/home/bg-tes.png", bonds: "knight&JackeyLove", spirit: "无畏前行", theme: "tes", selected: false },
     ],
     cities: [
-      { id: "1", name: "上海", selected: false },
-      { id: "2", name: "成都", selected: false },
-      { id: "3", name: "北京", selected: false },
+      { id: "1", name: "上海", image: "/imgs/route/city-shanghai.png", selected: false },
+      { id: "2", name: "成都", image: "/imgs/route/city-chengdu.png", selected: false },
+      { id: "3", name: "北京", image: "/imgs/route/city-beijing.png", selected: false },
     ],
     isGenerating: false,
     currentRoute: null,
@@ -129,5 +129,9 @@ Page({
     app.safeNavigateTo("/pages/ar/ar").catch((err) => {
       console.error("navigate to ar failed", err);
     });
+  },
+
+  goBack() {
+    wx.navigateBack();
   },
 });

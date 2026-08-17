@@ -1,409 +1,361 @@
-.container { height: 100vh; display: flex; flex-direction: column; background: linear-gradient(180deg, var(--dark-bg-deep) 0%, var(--dark-bg) 100%); }
-
-/* 聊天头部 - 玻璃拟态 */
-.chat-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 60rpx 30rpx 24rpx;
-  border-bottom: 1rpx solid rgba(42, 42, 74, 0.5);
-  background: rgba(10, 10, 26, 0.6);
-  backdrop-filter: blur(20rpx);
+.container {
   position: relative;
-  z-index: 10;
-}
-
-.header-left, .header-right {
-  width: 120rpx;
-  display: flex;
-  align-items: center;
-}
-
-.header-left { justify-content: flex-start; }
-.header-right { justify-content: flex-end; }
-
-.back-icon {
-  font-size: 48rpx;
-  color: var(--primary-gold);
-  text-shadow: 0 0 16rpx rgba(255, 215, 0, 0.5);
-  transition: all 0.2s ease;
-}
-
-.back-icon:active {
-  transform: scale(0.9);
-  text-shadow: 0 0 24rpx rgba(255, 215, 0, 0.8);
-}
-
-.header-right {
-  font-size: 26rpx;
-  color: var(--text-secondary);
-}
-
-.header-center {
-  flex: 1;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 8rpx;
+  width: 100%;
+  height: 100vh;
+  overflow: hidden;
+  color: #f7e4b2;
+  background: #010712;
 }
 
-.ai-status {
+.page-background {
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.container::after {
+  content: '';
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(0, 5, 14, 0.05) 0%, rgba(0, 5, 14, 0.02) 62%, rgba(0, 3, 10, 0.35) 100%);
+}
+
+.chat-header {
+  position: relative;
+  z-index: 10;
+  display: flex;
+  flex: 0 0 auto;
+  align-items: flex-end;
+  height: 66rpx;
+  padding: calc(env(safe-area-inset-top) + 5rpx + 50px) 26rpx 15rpx;
+  border-bottom: 1rpx solid rgba(202, 151, 72, 0.48);
+  box-sizing: content-box;
+}
+
+.chat-header::after {
+  content: '';
+  position: absolute;
+  left: 70rpx;
+  right: 70rpx;
+  bottom: -2rpx;
+  height: 3rpx;
+  background: linear-gradient(90deg, transparent, #c99748 16%, #147cff 50%, #c99748 84%, transparent);
+  box-shadow: 0 0 12rpx rgba(31, 126, 255, 0.7);
+}
+
+.header-left {
+  position: relative;
+  z-index: 2;
   display: flex;
   align-items: center;
-  gap: 12rpx;
-  font-size: 32rpx;
-  font-weight: bold;
-  color: var(--text-primary);
+  justify-content: flex-start;
+  width: 96rpx;
+  height: 66rpx;
 }
 
-.status-dot {
-  width: 16rpx;
-  height: 16rpx;
-  border-radius: 50%;
-  background: #66ff66;
-  box-shadow: 0 0 12rpx rgba(102, 255, 102, 0.8);
-  animation: pulse 2s ease-in-out infinite;
+.back-image {
+  width: 62rpx;
+  height: 62rpx;
+  filter: drop-shadow(0 0 10rpx rgba(16, 111, 255, 0.55));
 }
 
-.emotion-badge {
-  padding: 8rpx 24rpx;
-  border-radius: 24rpx;
-  font-size: 22rpx;
-  color: var(--dark-bg);
-  font-weight: bold;
-  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.2);
-  transition: all 0.2s ease;
+.header-left:active .back-image { transform: scale(0.9); }
+
+.header-title {
+  position: absolute;
+  left: 50%;
+  bottom: 18rpx;
+  color: #f4dfa8;
+  font-family: STSong, "Songti SC", SimSun, serif;
+  font-size: 31rpx;
+  font-weight: 700;
+  letter-spacing: 2rpx;
+  text-shadow: 0 2rpx 5rpx #000, 0 0 12rpx rgba(255, 203, 99, 0.22);
+  transform: translateX(-50%);
 }
 
-.emotion-badge:active {
-  transform: scale(0.95);
+.capsule-safe-space { width: 184rpx; height: 64rpx; margin-left: auto; }
+
+.hero-section {
+  position: relative;
+  z-index: 3;
+  flex: 0 0 310rpx;
+  height: 310rpx;
+  overflow: visible;
 }
 
-/* 聊天消息区域 */
+.hero-title-image {
+  position: absolute;
+  left: 50%;
+  top: -8rpx;
+  width: 500rpx;
+  height: auto;
+  filter: drop-shadow(0 0 18rpx rgba(0, 100, 255, 0.52));
+  transform: translateX(-50%);
+}
+
 .chat-messages {
+  position: relative;
+  z-index: 3;
   flex: 1;
-  padding: 30rpx;
-  overflow-y: auto;
+  min-height: 0;
+  width: 100%;
+  padding: 0 22rpx;
+  box-sizing: border-box;
+}
+
+.welcome-panel {
+  position: relative;
+  width: 100%;
+  height: 470rpx;
+  margin: 0 auto 20rpx;
+  animation: panelEnter 0.45s ease-out both;
+}
+
+.welcome-panel-frame {
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.welcome-inner {
   position: relative;
   z-index: 1;
+  padding: 43rpx 43rpx 35rpx;
 }
 
-/* 欢迎消息 - 增强 */
-.welcome-message {
-  display: flex;
-  margin-bottom: 40rpx;
-  animation: fadeInUp 0.5s ease-out;
-}
+.welcome-top { display: flex; align-items: center; min-height: 135rpx; }
 
 .welcome-avatar {
-  width: 96rpx;
-  height: 96rpx;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #ff4444, #ff8833, #ffcc00);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 48rpx;
-  margin-right: 24rpx;
-  box-shadow: 0 8rpx 24rpx rgba(255, 68, 68, 0.4);
-  border: 4rpx solid rgba(255, 215, 0, 0.3);
-  animation: float 3s ease-in-out infinite;
+  flex: 0 0 auto;
+  width: 128rpx;
+  height: 128rpx;
+  margin-right: 25rpx;
+  filter: drop-shadow(0 0 14rpx rgba(0, 118, 255, 0.55));
 }
 
-.welcome-content {
-  flex: 1;
-  background: linear-gradient(135deg, rgba(20, 20, 40, 0.9), rgba(28, 28, 56, 0.8));
-  border: 2rpx solid rgba(42, 42, 74, 0.6);
-  border-radius: 20rpx;
-  padding: 28rpx;
-  backdrop-filter: blur(10rpx);
-  box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.2);
-}
+.welcome-copy { flex: 1; min-width: 0; }
 
 .welcome-text {
-  font-size: 32rpx;
-  color: var(--primary-gold);
-  font-weight: bold;
-  margin-bottom: 12rpx;
+  color: #f1d292;
+  font-family: STSong, "Songti SC", SimSun, serif;
+  font-size: 30rpx;
+  font-weight: 900;
+  line-height: 1.25;
+  letter-spacing: 1rpx;
+  text-shadow: 0 2rpx 5rpx #000;
+  white-space: nowrap;
 }
 
 .welcome-desc {
-  color: var(--text-secondary);
-  font-size: 26rpx;
-  line-height: 1.5;
+  margin-top: 13rpx;
+  color: #c4c3cc;
+  font-size: 20rpx;
+  line-height: 1.55;
+  letter-spacing: 1rpx;
+  white-space: nowrap;
 }
 
 .quick-title {
-  display: block;
-  margin-top: 16rpx;
-  color: var(--text-muted);
+  margin: 17rpx 0 9rpx 7rpx;
+  color: #75c9ff;
   font-size: 24rpx;
+  letter-spacing: 1rpx;
+  text-shadow: 0 0 10rpx rgba(0, 126, 255, 0.5);
+}
+
+.quick-questions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8rpx 16rpx;
 }
 
 .quick-tag {
-  display: inline-block;
-  margin: 12rpx 12rpx 0 0;
-  padding: 12rpx 24rpx;
-  border: 2rpx solid rgba(255, 215, 0, 0.5);
-  border-radius: 28rpx;
-  font-size: 24rpx;
-  color: var(--primary-gold);
-  background: rgba(255, 215, 0, 0.08);
-  transition: all 0.2s ease;
-  box-shadow: 0 2rpx 8rpx rgba(255, 215, 0, 0.1);
-}
-
-.quick-tag:active {
-  transform: scale(0.95);
-  background: rgba(255, 215, 0, 0.15);
-  box-shadow: 0 4rpx 16rpx rgba(255, 215, 0, 0.25);
-}
-
-/* 消息项 */
-.message-item {
-  margin-bottom: 32rpx;
-  display: flex;
-  opacity: 0;
-  animation: fadeInUp 0.4s ease-out forwards;
-}
-
-.user-message {
-  flex-direction: row-reverse;
-}
-
-.message-content {
-  display: flex;
-  max-width: 82%;
-  gap: 16rpx;
-}
-
-.user-message .message-content {
-  flex-direction: row-reverse;
-}
-
-/* 头像 */
-.avatar {
-  width: 72rpx;
-  height: 72rpx;
-  border-radius: 50%;
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin: 0 12rpx;
-  flex-shrink: 0;
-  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.3);
+  height: 69rpx;
+  overflow: hidden;
+  color: #f2d08c;
+  font-family: STSong, "Songti SC", SimSun, serif;
+  font-size: 23rpx;
+  letter-spacing: 1rpx;
+  text-shadow: 0 2rpx 4rpx #000;
 }
 
-.ai-avatar {
-  background: linear-gradient(135deg, #ff4444, #ff8833, #ffcc00);
-  border: 3rpx solid rgba(255, 215, 0, 0.4);
-  font-size: 36rpx;
+.quick-tag-frame { position: absolute; z-index: 0; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.quick-tag text { position: relative; z-index: 1; white-space: nowrap; }
+.quick-tag:active { filter: brightness(1.35); transform: scale(0.97); }
+
+.message-item {
+  display: flex;
+  margin: 0 8rpx 25rpx;
+  opacity: 0;
+  animation: messageEnter 0.35s ease-out forwards;
 }
+
+.user-message { flex-direction: row-reverse; }
+.message-content { display: flex; max-width: 88%; gap: 13rpx; }
+.user-message .message-content { flex-direction: row-reverse; }
+
+.avatar {
+  flex: 0 0 auto;
+  width: 68rpx;
+  height: 68rpx;
+  border-radius: 50%;
+}
+
+.ai-avatar { filter: drop-shadow(0 0 10rpx rgba(0, 116, 255, 0.5)); }
 
 .user-avatar {
-  background: linear-gradient(135deg, var(--card-bg), var(--card-border));
-  border: 2rpx solid var(--card-border);
-  font-size: 32rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #f5d790;
+  font-family: STSong, "Songti SC", SimSun, serif;
+  font-size: 30rpx;
+  font-weight: 900;
+  border: 2rpx solid #b98a43;
+  background: radial-gradient(circle, #16407f, #06142d 70%);
+  box-shadow: 0 0 14rpx rgba(0, 103, 255, 0.4);
+  box-sizing: border-box;
 }
 
-/* 消息气泡 */
 .message-bubble {
-  padding: 24rpx 28rpx;
-  border-radius: 20rpx;
   position: relative;
-  transition: all 0.2s ease;
   max-width: 100%;
+  padding: 19rpx 23rpx;
+  border: 1rpx solid rgba(195, 145, 67, 0.62);
+  box-sizing: border-box;
 }
 
 .ai-bubble {
-  background: linear-gradient(135deg, rgba(20, 20, 40, 0.95), rgba(28, 28, 56, 0.9));
-  border: 2rpx solid rgba(42, 42, 74, 0.6);
-  border-radius: 20rpx 20rpx 20rpx 4rpx;
-  backdrop-filter: blur(10rpx);
-  box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.2),
-              0 1rpx 0 rgba(255, 255, 255, 0.05);
-}
-
-.ai-bubble:active {
-  transform: scale(0.98);
+  border-radius: 5rpx 18rpx 18rpx 18rpx;
+  background: linear-gradient(145deg, rgba(3, 20, 46, 0.96), rgba(3, 10, 26, 0.94));
+  box-shadow: inset 0 0 22rpx rgba(0, 91, 216, 0.16), 0 6rpx 18rpx rgba(0, 0, 0, 0.35);
 }
 
 .user-bubble {
-  background: linear-gradient(135deg, var(--primary-red), #ff5533, #ff7755);
-  border-radius: 20rpx 20rpx 4rpx 20rpx;
-  box-shadow: 0 4rpx 16rpx rgba(230, 48, 40, 0.4),
-              0 1rpx 0 rgba(255, 255, 255, 0.1);
   display: flex;
-  gap: 12rpx;
   align-items: flex-start;
+  gap: 10rpx;
+  border-radius: 18rpx 5rpx 18rpx 18rpx;
+  background: linear-gradient(145deg, rgba(13, 65, 133, 0.97), rgba(4, 26, 65, 0.96));
+  box-shadow: inset 0 0 22rpx rgba(0, 126, 255, 0.22), 0 6rpx 18rpx rgba(0, 0, 0, 0.35);
 }
 
-.user-bubble:active {
-  transform: scale(0.98);
-  box-shadow: 0 2rpx 8rpx rgba(230, 48, 40, 0.3);
-}
+.error-bubble { border-color: rgba(239, 83, 73, 0.75); }
 
 .message-text {
-  font-size: 28rpx;
-  line-height: 1.7;
+  color: #ece7df;
+  font-size: 26rpx;
+  line-height: 1.65;
   word-break: break-word;
-  color: var(--text-primary);
 }
 
-.user-bubble .message-text {
-  color: white;
-  flex: 1;
-}
+.emotion-tag { flex: 0 0 auto; font-size: 22rpx; }
+.message-time { margin-top: 9rpx; color: #7f91aa; font-size: 18rpx; text-align: right; }
 
-.emotion-tag {
-  background: rgba(255, 255, 255, 0.25);
-  border-radius: 12rpx;
-  padding: 6rpx 10rpx;
-  font-size: 22rpx;
-  flex-shrink: 0;
-  backdrop-filter: blur(10rpx);
-}
-
-/* 建议按钮 */
-.suggestions {
-  margin-top: 16rpx;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12rpx;
-}
+.suggestions { display: flex; flex-wrap: wrap; gap: 10rpx; margin-top: 14rpx; }
 
 .suggestion-btn {
-  padding: 12rpx 24rpx;
-  border: 2rpx solid rgba(255, 215, 0, 0.5);
-  border-radius: 24rpx;
-  font-size: 24rpx;
-  color: var(--primary-gold);
-  background: rgba(255, 215, 0, 0.1);
-  transition: all 0.2s ease;
-  box-shadow: 0 2rpx 8rpx rgba(255, 215, 0, 0.15);
+  padding: 9rpx 17rpx;
+  color: #ebca84;
+  font-size: 21rpx;
+  border: 1rpx solid rgba(196, 145, 68, 0.7);
+  border-radius: 8rpx;
+  background: rgba(6, 35, 76, 0.75);
 }
 
-.suggestion-btn:active {
-  transform: scale(0.95);
-  background: rgba(255, 215, 0, 0.2);
-  box-shadow: 0 4rpx 16rpx rgba(255, 215, 0, 0.25);
-}
+.suggestion-btn:active { color: #fff1c1; background: rgba(13, 70, 143, 0.9); }
 
-.message-time {
-  margin-top: 12rpx;
-  font-size: 20rpx;
-  color: var(--text-muted);
-  text-align: right;
-  opacity: 0.7;
-}
-
-/* 输入中指示器 */
-.typing-indicator {
-  display: flex;
-  align-items: center;
-  margin-bottom: 20rpx;
-  animation: fadeIn 0.3s ease-out;
-}
+.typing-indicator { display: flex; align-items: center; gap: 13rpx; margin: 0 8rpx 20rpx; }
 
 .typing-bubble {
   display: flex;
-  gap: 10rpx;
-  padding: 20rpx 28rpx;
-  border: 2rpx solid rgba(42, 42, 74, 0.6);
-  border-radius: 20rpx;
-  background: rgba(20, 20, 40, 0.9);
-  backdrop-filter: blur(10rpx);
+  gap: 9rpx;
+  padding: 18rpx 25rpx;
+  border: 1rpx solid rgba(195, 145, 67, 0.55);
+  border-radius: 5rpx 18rpx 18rpx 18rpx;
+  background: rgba(3, 17, 39, 0.95);
 }
 
-.typing-dot {
-  width: 12rpx;
-  height: 12rpx;
-  border-radius: 50%;
-  background: var(--primary-gold);
-  animation: typingPulse 1.4s ease-in-out infinite;
-}
+.typing-dot { width: 10rpx; height: 10rpx; border-radius: 50%; background: #3aa9ff; animation: typingPulse 1.3s ease-in-out infinite; }
+.typing-dot:nth-child(2) { animation-delay: 0.18s; }
+.typing-dot:nth-child(3) { animation-delay: 0.36s; }
+.message-bottom-space { height: 24rpx; }
 
-.typing-dot:nth-child(2) { animation-delay: 0.2s; }
-.typing-dot:nth-child(3) { animation-delay: 0.4s; }
-
-@keyframes typingPulse {
-  0%, 60%, 100% {
-    transform: scale(1);
-    opacity: 0.5;
-  }
-  30% {
-    transform: scale(1.3);
-    opacity: 1;
-  }
-}
-
-/* 输入区域 */
 .chat-input-area {
-  padding: 24rpx 30rpx 40rpx;
-  border-top: 1rpx solid rgba(42, 42, 74, 0.5);
-  background: rgba(10, 10, 26, 0.8);
-  backdrop-filter: blur(20rpx);
   position: relative;
   z-index: 10;
+  flex: 0 0 auto;
+  padding: 9rpx 21rpx calc(env(safe-area-inset-bottom) + 13rpx);
+  background: linear-gradient(180deg, rgba(0, 5, 14, 0), rgba(0, 4, 12, 0.84) 24%, rgba(0, 3, 10, 0.96));
 }
 
-.input-wrapper {
-  display: flex;
-  align-items: center;
-  gap: 16rpx;
-  background: rgba(20, 20, 40, 0.8);
-  border: 2rpx solid rgba(42, 42, 74, 0.6);
-  border-radius: 48rpx;
-  padding: 16rpx 28rpx;
-  backdrop-filter: blur(10rpx);
-  transition: all 0.2s ease;
-  box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.2);
-}
-
-.input-wrapper:focus-within {
-  border-color: var(--primary-gold);
-  box-shadow: 0 0 24rpx rgba(255, 215, 0, 0.3);
-}
+.input-wrapper { position: relative; height: 110rpx; }
+.input-frame { position: absolute; z-index: 0; inset: 0; width: 100%; height: 100%; pointer-events: none; }
 
 .chat-input {
-  flex: 1;
-  font-size: 28rpx;
-  color: var(--text-primary);
-  height: 40rpx;
-  line-height: 40rpx;
+  position: absolute;
+  z-index: 1;
+  left: 106rpx;
+  right: 170rpx;
+  top: 26rpx;
+  height: 58rpx;
+  color: #e5e9f3;
+  font-size: 26rpx;
+  line-height: 58rpx;
 }
 
-.input-placeholder {
-  color: var(--text-muted);
-}
+.input-placeholder { color: #77849d; }
 
 .send-btn {
-  padding: 14rpx 36rpx;
-  border-radius: 32rpx;
-  background: rgba(42, 42, 74, 0.6);
-  color: var(--text-secondary);
-  font-size: 26rpx;
-  font-weight: bold;
-  transition: all 0.2s ease;
-  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.2);
-  border: 1rpx solid rgba(42, 42, 74, 0.5);
+  position: absolute;
+  z-index: 2;
+  right: 13rpx;
+  top: 10rpx;
+  width: 145rpx;
+  height: 90rpx;
+  opacity: 0.62;
+  filter: saturate(0.72);
+  transition: transform 0.15s ease, opacity 0.15s ease, filter 0.15s ease;
 }
 
-.send-btn.active {
-  background: linear-gradient(135deg, var(--primary-red), #ff5533);
-  color: white;
-  box-shadow: 0 4rpx 16rpx rgba(230, 48, 40, 0.4);
-  border-color: transparent;
-}
-
-.send-btn:active {
-  transform: scale(0.95);
-}
+.send-btn image { width: 100%; height: 100%; }
+.send-btn.active { opacity: 1; filter: saturate(1.08) drop-shadow(0 0 9rpx rgba(0, 105, 255, 0.6)); }
+.send-btn:active { transform: scale(0.94); }
 
 .input-hint {
-  margin-top: 12rpx;
+  margin-top: 4rpx;
+  color: #8e7454;
+  font-size: 19rpx;
+  letter-spacing: 1rpx;
   text-align: center;
-  color: var(--text-muted);
-  font-size: 22rpx;
-  letter-spacing: 0.5rpx;
+}
+
+@keyframes panelEnter {
+  from { opacity: 0; transform: translateY(18rpx); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes messageEnter {
+  from { opacity: 0; transform: translateY(15rpx); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes typingPulse {
+  0%, 60%, 100% { opacity: 0.4; transform: scale(0.9); }
+  30% { opacity: 1; transform: scale(1.25); }
 }

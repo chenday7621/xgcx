@@ -1,151 +1,129 @@
 <view class="container">
-  <view class="header">
-    <view class="header-bg"></view>
-    <view class="header-content">
-      <view class="header-icon">🗺️</view>
-      <view class="title">电竞文旅路线</view>
-      <view class="subtitle">专属定制 · 深度打卡</view>
+  <image class="page-background" src="/imgs/route/background.png" mode="aspectFill"></image>
+
+  <view class="custom-nav">
+    <view class="nav-back" bindtap="goBack">
+      <image src="/imgs/chat/back.png" mode="aspectFit"></image>
     </view>
+    <view class="capsule-safe-space"></view>
   </view>
 
-  <view class="card card-hero">
-    <view class="card-header">
-      <view class="card-icon">⚔️</view>
-      <view class="card-title">选择你的战队</view>
-    </view>
-    <view class="team-grid">
-      <view
-        wx:for="{{teams}}"
-        wx:key="id"
-        class="team-card {{item.selected ? 'team-card-selected' : ''}}"
-        data-id="{{item.id}}"
-        bindtap="selectTeam"
-      >
-        <view class="team-avatar">{{item.name[0]}}</view>
-        <view class="team-name">{{item.name}}</view>
-        <view class="team-check" wx:if="{{item.selected}}">✓</view>
-      </view>
-    </view>
+  <view class="hero-header">
+    <image class="hero-image" src="/imgs/route/hero.png" mode="widthFix"></image>
   </view>
 
-  <view class="card card-secondary">
-    <view class="card-header">
-      <view class="card-icon">📍</view>
-      <view class="card-title">选择目的城市</view>
-    </view>
-    <view class="city-list">
-      <view
-        wx:for="{{cities}}"
-        wx:key="id"
-        class="city-item {{item.selected ? 'city-item-selected' : ''}}"
-        data-id="{{item.id}}"
-        bindtap="selectCity"
-      >
-        <view class="city-icon">🏙️</view>
-        <view class="city-info">
-          <view class="city-name">{{item.name}}</view>
-          <view class="city-tag">电竞城市</view>
-        </view>
-        <view class="city-radio">
-          <view class="city-radio-inner" wx:if="{{item.selected}}"></view>
-        </view>
-      </view>
-    </view>
-  </view>
+  <view class="route-shell">
+    <view class="shell-corner shell-corner-tl"></view>
+    <view class="shell-corner shell-corner-tr"></view>
+    <view class="shell-corner shell-corner-bl"></view>
+    <view class="shell-corner shell-corner-br"></view>
 
-  <button
-    class="gen-btn {{(teamsIndex >= 0 && cityIndex >= 0) ? 'gen-btn-ready' : ''}}"
-    loading="{{isGenerating}}"
-    bindtap="generateRoute"
-  >
-    <view class="gen-btn-content">
-      <view class="gen-btn-icon">✨</view>
-      <view class="gen-btn-text">{{isGenerating ? '生成专属路线中...' : '生成专属路线'}}</view>
-    </view>
-  </button>
-
-  <view wx:if="{{currentRoute}}" class="card card-route">
-    <view class="route-header">
-      <view class="route-badge">{{currentRoute.city}}</view>
-      <view class="route-title">{{currentRoute.title}}</view>
-      <view class="route-meta">
-        <view class="route-meta-item">
-          <view class="route-meta-icon">📍</view>
-          <view>{{currentRoute.nodes.length}}个打卡点</view>
-        </view>
-        <view class="route-meta-item">
-          <view class="route-meta-icon">⏱️</view>
-          <view>约2小时</view>
+    <view class="route-section team-section">
+      <image class="section-heading heading-teams" src="/imgs/route/heading-teams.png" mode="widthFix"></image>
+      <view class="team-grid">
+        <view
+          wx:for="{{teams}}"
+          wx:key="id"
+          class="team-card team-{{item.theme}} {{item.selected ? 'team-card-selected' : ''}}"
+          data-id="{{item.id}}"
+          bindtap="selectTeam"
+        >
+          <image class="team-bg" src="{{item.background}}" mode="aspectFill"></image>
+          <view class="team-glow"></view>
+          <image class="team-logo" src="{{item.image}}" mode="aspectFit"></image>
+          <view class="team-name">{{item.name}}</view>
+          <view class="team-bonds">{{item.bonds}}</view>
+          <view class="team-spirit">{{item.spirit}}</view>
+          <view class="team-diamond">◆</view>
+          <view class="team-check" wx:if="{{item.selected}}">✓</view>
         </view>
       </view>
     </view>
 
-    <view class="timeline">
-      <view
-        wx:for="{{currentRoute.nodes}}"
-        wx:key="id"
-        class="timeline-item {{index === currentRoute.nodes.length - 1 ? 'timeline-item-last' : ''}}"
-      >
-        <view class="timeline-left">
-          <view class="timeline-dot">
-            <view class="timeline-dot-inner"></view>
-          </view>
-          <view class="timeline-line" wx:if="{{index < currentRoute.nodes.length - 1}}"></view>
-        </view>
-        <view class="timeline-content">
-          <view class="timeline-num">第{{index + 1}}站</view>
-          <view class="timeline-card">
-            <view class="timeline-name">{{item.name}}</view>
-            <view class="timeline-desc">{{item.description}}</view>
-          </view>
+    <view class="route-section city-section">
+      <image class="section-heading heading-city" src="/imgs/route/heading-city.png" mode="widthFix"></image>
+      <view class="city-grid">
+        <view
+          wx:for="{{cities}}"
+          wx:key="id"
+          class="city-item {{item.selected ? 'city-item-selected' : ''}}"
+          data-id="{{item.id}}"
+          bindtap="selectCity"
+        >
+          <image class="city-card-image" src="{{item.image}}" mode="scaleToFill"></image>
+          <view wx:if="{{item.selected}}" class="city-selected-dot"></view>
         </view>
       </view>
     </view>
 
-    <button class="ar-btn" bindtap="openAR">
-      <view class="ar-btn-content">
-        <view class="ar-btn-icon">🎯</view>
-        <view class="ar-btn-text">开始AR打卡</view>
-        <view class="ar-btn-arrow">→</view>
-      </view>
+    <button
+      class="gen-btn {{(teamsIndex >= 0 && cityIndex >= 0) ? 'gen-btn-ready' : ''}}"
+      loading="{{isGenerating}}"
+      bindtap="generateRoute"
+    >
+      <image class="gen-btn-image" src="/imgs/route/generate-button.png" mode="widthFix"></image>
+      <view wx:if="{{isGenerating}}" class="gen-loading-text">生成专属路线中...</view>
     </button>
-  </view>
 
-  <view class="card card-history">
-    <view class="history-header">
-      <view class="card-icon">📜</view>
-      <view class="card-title">我的路线</view>
-      <view class="history-count" wx:if="{{myRoutes.length > 0}}">{{myRoutes.length}}</view>
+    <view wx:if="{{currentRoute}}" class="route-result">
+      <view class="route-header">
+        <view class="route-badge">{{currentRoute.city}}</view>
+        <view class="route-title">{{currentRoute.title}}</view>
+        <view class="route-meta">
+          <view>◆ {{currentRoute.nodes.length}}个打卡点</view>
+          <view>◆ 约2小时</view>
+        </view>
+      </view>
+
+      <view class="timeline">
+        <view wx:for="{{currentRoute.nodes}}" wx:key="id" class="timeline-item">
+          <view class="timeline-left">
+            <view class="timeline-dot"><view class="timeline-dot-inner"></view></view>
+            <view class="timeline-line" wx:if="{{index < currentRoute.nodes.length - 1}}"></view>
+          </view>
+          <view class="timeline-content">
+            <view class="timeline-num">第{{index + 1}}站</view>
+            <view class="timeline-card">
+              <view class="timeline-name">{{item.name}}</view>
+              <view class="timeline-desc">{{item.description}}</view>
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <button class="ar-btn" bindtap="openAR">
+        <view>开始AR打卡</view><view class="ar-btn-arrow">→</view>
+      </button>
     </view>
 
-    <view wx:if="{{myRoutes.length === 0}}" class="empty-state">
-      <view class="empty-icon">🎒</view>
-      <view class="empty-text">还没有生成路线</view>
-      <view class="empty-hint">选择战队和城市，生成你的专属路线</view>
-    </view>
+    <view class="history-section">
+      <image class="section-heading heading-history" src="/imgs/route/heading-history.png" mode="widthFix"></image>
+      <view class="history-panel">
+        <image class="history-panel-frame" src="/imgs/route/history-frame.png" mode="scaleToFill"></image>
 
-    <view class="history-list">
-      <view
-        wx:for="{{myRoutes}}"
-        wx:key="id"
-        class="history-item {{(currentRoute && currentRoute.id === item.id) ? 'history-item-active' : ''}}"
-        data-route="{{item}}"
-        bindtap="viewRoute"
-      >
-        <view class="history-item-left">
-          <view class="history-item-badge">{{item.city}}</view>
+        <view wx:if="{{myRoutes.length === 0}}" class="empty-state">
+          <image src="/imgs/route/empty-route.png" mode="aspectFit"></image>
         </view>
-        <view class="history-item-content">
-          <view class="history-item-title">{{item.title}}</view>
-          <view class="history-item-desc">{{item.description}}</view>
+
+        <view wx:if="{{myRoutes.length > 0}}" class="history-list">
+          <view
+            wx:for="{{myRoutes}}"
+            wx:key="id"
+            class="history-item {{(currentRoute && currentRoute.id === item.id) ? 'history-item-active' : ''}}"
+            data-route="{{item}}"
+            bindtap="viewRoute"
+          >
+            <view class="history-item-badge">{{item.city}}</view>
+            <view class="history-item-content">
+              <view class="history-item-title">{{item.title}}</view>
+              <view class="history-item-desc">{{item.description}}</view>
+            </view>
+            <view class="history-item-arrow">›</view>
+          </view>
         </view>
-        <view class="history-item-arrow">›</view>
       </view>
     </view>
-  </view>
 
-  <view class="footer-tip">
-    <view class="footer-tip-icon">💡</view>
-    <view class="footer-tip-text">根据你的喜好智能推荐最佳打卡路线</view>
+    <image class="footer-tip" src="/imgs/route/footer-tip.png" mode="widthFix"></image>
   </view>
 </view>

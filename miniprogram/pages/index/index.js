@@ -5,6 +5,7 @@ Page({
     particles: [],
     welcomeEmoji: "🎮",
     welcomeTitle: "欢迎来到电竞世界",
+    welcomeTitleImage: "/imgs/home/night-title.png",
     welcomeMessage: "今天想了解什么电竞故事呢？",
     suggestions: [
       { id: 1, text: "EDG选手的羁绊故事" },
@@ -13,10 +14,10 @@ Page({
       { id: 4, text: "成都AG主场有什么" },
     ],
     hotTeams: [
-      { id: 1, name: "EDG", color: "linear-gradient(135deg, #ff4444, #ff8833)", logoText: "EDG", bonds: "Meiko&Scout", spirit: "团结拼搏", delayClass: "delay-7" },
-      { id: 2, name: "AG超玩会", color: "linear-gradient(135deg, #00ccff, #9966ff)", logoText: "AG", bonds: "一诺&Cat", spirit: "永不言弃", delayClass: "delay-8" },
-      { id: 3, name: "狼队", color: "linear-gradient(135deg, #ffd700, #ffaa00)", logoText: "狼", bonds: "Fly&胖皇", spirit: "坚韧不拔", delayClass: "delay-9" },
-      { id: 4, name: "TES", color: "linear-gradient(135deg, #66ff66, #00ccff)", logoText: "TES", bonds: "knight&JackeyLove", spirit: "无畏前行", delayClass: "delay-10" },
+      { id: 1, name: "EDG", image: "/imgs/home/team-edg.png", background: "/imgs/home/bg-edg.jpg", color: "linear-gradient(135deg, #555b68, #151820)", logoText: "EDG", bonds: "Meiko&Scout", spirit: "团结拼搏", theme: "edg", delayClass: "delay-7" },
+      { id: 2, name: "AG超玩会", image: "/imgs/home/team-ag.png", background: "/imgs/home/bg-ag.jpg", color: "linear-gradient(135deg, #f0443c, #700508)", logoText: "AG", bonds: "一诺&Cat", spirit: "永不言弃", theme: "ag", delayClass: "delay-8" },
+      { id: 3, name: "狼队", image: "/imgs/home/team-wolves.png", background: "/imgs/home/bg-wolves.png", color: "linear-gradient(135deg, #ffd700, #b77800)", logoText: "狼", bonds: "Fly&胖皇", spirit: "坚韧不拔", theme: "wolves", delayClass: "delay-9" },
+      { id: 4, name: "TES", image: "/imgs/home/team-tes.png", background: "/imgs/home/bg-tes.png", color: "linear-gradient(135deg, #e8342f, #7d0710)", logoText: "TES", bonds: "knight&JackeyLove", spirit: "无畏前行", theme: "tes", delayClass: "delay-10" },
     ],
     pageLoaded: false,
     contentVisible: false,
@@ -55,6 +56,7 @@ Page({
     if (!this.particleInterval) {
       this.generateParticles();
     }
+    this.updateWelcomeByTime();
     const emotion = app.globalData.emotion;
     if (emotion && emotion !== "neutral") this.updateWelcomeByEmotion(emotion);
   },
@@ -136,22 +138,31 @@ Page({
     const hour = new Date().getHours();
     let emoji = "🔥";
     let title = "下午好，召唤师";
+    let titleImage = "/imgs/home/afternoon-title.png";
     let message = "今天有比赛，来聊聊赛况吧！";
 
     if (hour < 6) {
       emoji = "🌙";
       title = "深夜时光";
+      titleImage = "/imgs/home/night-title.png";
       message = "想了解哪个选手的励志故事？";
     } else if (hour < 12) {
       emoji = "☀️";
       title = "早安，召唤师";
+      titleImage = "/imgs/home/morning-title.png";
       message = "新的一天，为你喜欢的战队加油！";
     } else if (hour >= 18) {
       emoji = "🌆";
       title = "晚上好";
+      titleImage = "/imgs/home/evening-title.png";
       message = "今晚有精彩对决，想了解什么？";
     }
-    this.setData({ welcomeEmoji: emoji, welcomeTitle: title, welcomeMessage: message });
+    this.setData({
+      welcomeEmoji: emoji,
+      welcomeTitle: title,
+      welcomeTitleImage: titleImage,
+      welcomeMessage: message,
+    });
   },
 
   updateWelcomeByEmotion(emotion) {

@@ -34,7 +34,7 @@
     "packNpmManually": false,
     "packNpmRelationList": [],
     "minifyWXSS": true,
-    "ignoreUploadUnusedFiles": true,
+    "ignoreUploadUnusedFiles": false,
     "compileWorklet": false,
     "minifyWXML": true,
     "localPlugins": false,
@@ -70,7 +70,12 @@
   },
   "packOptions": {
     "ignore": [],
-    "include": []
+    "include": [
+      {
+        "value": "imgs/**",
+        "type": "glob"
+      }
+    ]
   },
   "appid": "wxbad9e496d795a464",
   "libVersion": "3.15.1",
