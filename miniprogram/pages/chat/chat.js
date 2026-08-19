@@ -73,6 +73,7 @@ Page({
         id: Date.now() + 1,
         role: "ai",
         content: response.content,
+        segments: this.parseContent(response.content),
         time: this.formatTime(new Date()),
         emotion: app.globalData.emotion,
         suggestions: this.generateSuggestions(message),
@@ -128,6 +129,54 @@ Page({
     };
   },
 
+  /**
+   * 将 AI 返回的纯文本解析为「文本段 + 图片段」数组。
+   * 支持 markdown 图片语法 ![alt](url) 和纯图片 URL。
+   */
+  parseContent(content) {
+    if (!content) return [];
+    const segments = [];
+    const imgRegex =
+      /!\[([^\]]*)\]\(([^)\s]+)\)|((?:https?:\/\/)[^\s]+\.(?:jpg|jpeg|png|gif|webp|bmp|svg)(?:\?[^\s]*)?)/gi;
+    let lastIndex = 0;
+    let match;
+    while ((match = imgRegex.exec(content)) !== null) {
+      if (match.index > lastIndex) {
+        segments.push({ type: "text", content: content.slice(lastIndex, match.index) });
+      }
+      if (match[2]) {
+        segments.push({ type: "image", url: match[2], alt: match[1] || "" });
+      } else if (match[3]) {
+        segments.push({ type: "image", url: match[3], alt: "" });
+      }
+      lastIndex = imgRegex.lastIndex;
+    }
+    if (lastIndex < content.length) {
+      segments.push({ type: "text", content: content.slice(lastIndex) });
+    }
+    return segments;
+  },
+
+  /**
+   * 点击图片预览，收集当前所有消息中的图片支持左右滑动。
+   */
+  onImageTap(e) {
+    const url = e.currentTarget.dataset.url;
+    if (!url) return;
+    const allImages = [];
+    for (const msg of this.data.messages) {
+      if (msg.segments) {
+        for (const seg of msg.segments) {
+          if (seg.type === "image") allImages.push(seg.url);
+        }
+      }
+    }
+    wx.previewImage({
+      current: url,
+      urls: allImages.length > 0 ? allImages : [url],
+    });
+  },
+
   generateSuggestions(userMessage) {
     const lowerMsg = userMessage.toLowerCase();
     const suggestions = [];
@@ -138,7 +187,7 @@ Page({
       suggestions.push("了解相关赛事精神", "探索更多战队故事");
     }
     if (lowerMsg.includes("路线") || lowerMsg.includes("旅游") || lowerMsg.includes("打卡")) {
-      suggestions.push("查看我的路线详情", "分享到朋友圈");
+      suggestions.push("查看我的路线详情", "推荐沿途美食");
     }
     if (suggestions.length === 0) suggestions.push("了解更多相关信息", "生成文旅路线", "AR虚拟打卡");
     return suggestions.slice(0, 3);

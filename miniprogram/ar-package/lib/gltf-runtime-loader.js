@@ -1,303 +1,692 @@
-/*
- * Minimal GLB 2.0 runtime loader for the AR subpackage.
- *
- * It supports the static PBR mesh subset used by daji.glb: embedded buffers,
- * indexed triangle meshes, node transforms, PNG/JPEG textures and normal maps.
+/**
+ * Lightweight GLB (GL Transmission Format Binary) loader for threejs-miniprogram.
+ * Supports: positions, normals, UVs, triangle indices, materials, and basic textures.
+ * Based on glTF 2.0 spec: https://github.com/KhronosGroup/glTF/tree/master/specification/2.0
  */
 
-const GLB_MAGIC = 0x46546c67;
-const JSON_CHUNK = 0x4e4f534a;
-const BIN_CHUNK = 0x004e4942;
+const GLB_MAGIC = 0x46546C67; // 'glTF' in ASCII
 
-const COMPONENTS = {
-  5120: { ArrayType: Int8Array, bytes: 1, getter: "getInt8" },
-  5121: { ArrayType: Uint8Array, bytes: 1, getter: "getUint8" },
-  5122: { ArrayType: Int16Array, bytes: 2, getter: "getInt16" },
-  5123: { ArrayType: Uint16Array, bytes: 2, getter: "getUint16" },
-  5125: { ArrayType: Uint32Array, bytes: 4, getter: "getUint32" },
-  5126: { ArrayType: Float32Array, bytes: 4, getter: "getFloat32" },
-};
-
-const TYPE_SIZE = {
-  SCALAR: 1,
-  VEC2: 2,
-  VEC3: 3,
-  VEC4: 4,
-  MAT2: 4,
-  MAT3: 9,
-  MAT4: 16,
-};
-
-function readFile(filePath) {
+/**
+ * Load a GLB file from a URL or local path and return a Three.js Group.
+ * @param {string} src - URL or local file path
+ * @param {object} THREE - Three.js instance from createScopedThreejs
+ * @param {function} onProgress - progress callback (0-100)
+ * @returns {Promise<object>} - { scene: THREE.Group, animations: [] }
+ */
+function loadGLB(src, THREE, onProgress) {
   return new Promise((resolve, reject) => {
-    wx.getFileSystemManager().readFile({
-      filePath,
-      success: (res) => resolve(res.data),
-      fail: reject,
+    if (src.startsWith("http://") || src.startsWith("https://")) {
+      wx.request({
+        url: src,
+        responseType: "arraybuffer",
+        success: (res) => {
+          if (res.statusCode !== 200) {
+            reject(new Error(`HTTP ${res.statusCode}`));
+            return;
+          }
+          const buffer = res.data;
+          parseGLB(buffer, THREE, onProgress).then(resolve).catch(reject);
+        },
+        fail: (err) => reject(new Error("Request failed: " + err.errMsg)),
+      });
+    } else {
+      // Local file (temp path from wx.cloud.downloadFile)
+      wx.getFileSystemManager().readFile({
+        filePath: src,
+        success: (res) => {
+          // res.data is an ArrayBuffer when encoding is not specified
+          const buffer = res.data;
+          parseGLB(buffer, THREE, onProgress).then(resolve).catch(reject);
+        },
+        fail: (err) => reject(new Error("ReadFile failed: " + err.errMsg)),
+      });
+    }
+  });
+}
+
+function parseGLB(buffer, THREE, onProgress) {
+  // ---------- GLB Header (12 bytes) ----------
+  const magic = getUint32(buffer, 0);
+  if (magic !== GLB_MAGIC) {
+    return Promise.reject(new Error("Not a valid GLB file: magic=" + magic.toString(16)));
+  }
+  const version = getUint32(buffer, 4);
+  const length = getUint32(buffer, 8);
+
+  // ---------- Chunk 1: JSON ----------
+  const chunk1Length = getUint32(buffer, 12);
+  const chunk1Type = getUint32(buffer, 16);
+
+  if (chunk1Type !== 0x4E4F534A) {
+    return Promise.reject(new Error("Expected JSON chunk, got type=" + chunk1Type));
+  }
+
+  const jsonBytes = buffer.slice(20, 20 + chunk1Length);
+  const jsonText = decodeUTF8(jsonBytes);
+  let gltf;
+  try {
+    gltf = JSON.parse(jsonText);
+  } catch (e) {
+    return Promise.reject(new Error("Invalid JSON in GLB: " + e.message));
+  }
+
+  // ---------- Chunk 2: Binary ----------
+  let binaryBuffer = null;
+  const binaryStart = 20 + chunk1Length;
+  if (binaryStart < length) {
+    const chunk2Length = getUint32(buffer, binaryStart);
+    const chunk2Type = getUint32(buffer, binaryStart + 4);
+    if (chunk2Type === 0x004E4942) {
+      binaryBuffer = buffer.slice(binaryStart + 8, binaryStart + 8 + chunk2Length);
+    }
+  }
+
+  // ---------- Build Three.js scene ----------
+  console.info("[GLB] buildScene start, meshes:", gltf.meshes ? gltf.meshes.length : 0, "materials:", gltf.materials ? gltf.materials.length : 0, "textures:", gltf.textures ? gltf.textures.length : 0);
+
+  return buildScene(gltf, binaryBuffer, THREE, onProgress).then(({ scene, animations }) => {
+    console.info("[GLB] Scene built, applying textures...");
+    // Apply textures after scene is built
+    return applyTexturesToScene(scene, gltf, binaryBuffer, THREE).then(() => {
+      console.info("[GLB] Texture application complete");
+      return { scene, animations };
+    }).catch((e) => {
+      console.warn("[GLB] Texture application failed:", e);
+      return { scene, animations };
     });
   });
 }
 
-function decodeUtf8(bytes) {
-  if (typeof TextDecoder !== "undefined") {
-    return new TextDecoder("utf-8").decode(bytes);
-  }
-  let output = "";
-  let index = 0;
-  while (index < bytes.length) {
-    const first = bytes[index++];
-    if (first < 0x80) {
-      output += String.fromCharCode(first);
-    } else if (first < 0xe0) {
-      const second = bytes[index++];
-      output += String.fromCharCode(((first & 0x1f) << 6) | (second & 0x3f));
-    } else if (first < 0xf0) {
-      const second = bytes[index++];
-      const third = bytes[index++];
-      output += String.fromCharCode(((first & 0x0f) << 12) | ((second & 0x3f) << 6) | (third & 0x3f));
+function buildScene(gltf, binaryBuffer, THREE, onProgress) {
+  const scene = new THREE.Group();
+  const animations = [];
+  const meshMap = {};
+
+  // Default scene
+  const defaultScene = gltf.scene !== undefined ? gltf.scenes[gltf.scene || 0] : gltf.scenes[0];
+  if (!defaultScene) return Promise.resolve({ scene, animations });
+
+  // Load buffer views into typed arrays
+  const bufferViews = gltf.bufferViews || [];
+  const buffers = (gltf.buffers || []).map((buf, i) => {
+    if (!binaryBuffer) return null;
+    if (!buf.byteStride) {
+      return binaryBuffer;
+    }
+    return i === 0 ? binaryBuffer : null;
+  });
+
+  // Load accessors
+  const accessors = gltf.accessors || [];
+
+  // Process nodes
+  const nodes = gltf.nodes || [];
+  nodes.forEach((node, ni) => {
+    let obj = null;
+
+    if (node.mesh !== undefined) {
+      const meshObj = buildMesh(gltf, node.mesh, THREE, buffers, accessors, bufferViews, onProgress);
+      obj = meshObj;
+    }
+
+    if (node.camera !== undefined) {
+      const camDef = gltf.cameras[node.camera];
+      if (camDef && camDef.type === "perspective") {
+        const p = camDef.perspective;
+        obj = new THREE.PerspectiveCamera(
+          THREE.MathUtils.radToDeg(p.yfov),
+          p.aspectRatio || 1,
+          p.znear || 0.01,
+          p.zfar || 1000
+        );
+      }
+    }
+
+    if (!obj) {
+      obj = new THREE.Object3D();
+    }
+
+    // Transform
+    if (node.matrix) {
+      const m = new THREE.Matrix4();
+      m.fromArray(node.matrix);
+      obj.matrixAutoUpdate = false;
+      obj.matrix.copy(m);
     } else {
-      const second = bytes[index++];
-      const third = bytes[index++];
-      const fourth = bytes[index++];
-      let codePoint = ((first & 0x07) << 18) | ((second & 0x3f) << 12) | ((third & 0x3f) << 6) | (fourth & 0x3f);
-      codePoint -= 0x10000;
-      output += String.fromCharCode(0xd800 + (codePoint >> 10), 0xdc00 + (codePoint & 0x3ff));
+      if (node.translation) obj.position.fromArray(node.translation);
+      if (node.rotation) obj.quaternion.fromArray(node.rotation);
+      if (node.scale) obj.scale.fromArray(node.scale);
+    }
+
+    obj.name = node.name || "node_" + ni;
+    meshMap[ni] = obj;
+  });
+
+  // Build hierarchy
+  nodes.forEach((node, ni) => {
+    const obj = meshMap[ni];
+    if (!obj) return;
+    if (node.children) {
+      node.children.forEach((ci) => {
+        const child = meshMap[ci];
+        if (child) obj.add(child);
+      });
+    }
+  });
+
+  // Add root nodes of default scene
+  (defaultScene.nodes || []).forEach((ni) => {
+    const root = meshMap[ni];
+    if (root) scene.add(root);
+  });
+
+  // Load animations (simplified)
+  const anims = gltf.animations || [];
+  anims.forEach((anim) => {
+    if (anim.channels && anim.samplers) {
+      animations.push({ name: anim.name || "anim", channels: anim.channels, samplers: anim.samplers });
+    }
+  });
+
+  return Promise.resolve({ scene, animations });
+}
+
+function buildMesh(gltf, meshIndex, THREE, buffers, accessors, bufferViews, onProgress) {
+  const meshDef = gltf.meshes[meshIndex];
+  if (!meshDef) return new THREE.Group();
+
+  const group = new THREE.Group();
+  group.name = meshDef.name || "mesh_" + meshIndex;
+
+  const primitives = meshDef.primitives || [];
+
+  primitives.forEach((prim, pi) => {
+    const geometry = new THREE.BufferGeometry();
+
+    // Check for vertex colors
+    let hasVertexColor = false;
+
+    // Attributes
+    const attrs = prim.attributes || {};
+    Object.keys(attrs).forEach((attrName) => {
+      const accessorIndex = attrs[attrName];
+      const accessor = accessors[accessorIndex];
+      if (!accessor) return;
+
+      const typedArray = getAccessorData(accessor, buffers, bufferViews);
+      if (!typedArray) return;
+
+      // Map attribute names to Three.js format
+      const threeAttrName = attrName === "POSITION" ? "position"
+        : attrName === "NORMAL" ? "normal"
+        : attrName === "TEXCOORD_0" ? "uv"
+        : attrName === "COLOR_0" ? "color"
+        : attrName;
+
+      if (threeAttrName) {
+        geometry.addAttribute(threeAttrName, new THREE.BufferAttribute(typedArray, getCompCount(accessor)));
+        if (threeAttrName === "color") {
+          hasVertexColor = true;
+        }
+      }
+    });
+
+    console.info("[GLB] primitive[" + pi + "] attributes:", Object.keys(attrs).join(","), "hasVertexColor:", hasVertexColor);
+
+    // Indices
+    if (prim.indices !== undefined) {
+      const idxAccessor = accessors[prim.indices];
+      if (idxAccessor) {
+        const idxData = getAccessorData(idxAccessor, buffers, bufferViews);
+        if (idxData) {
+          geometry.index = new THREE.BufferAttribute(idxData, 1);
+        }
+      }
+    }
+
+    geometry.computeVertexNormals();
+
+    // Material - create without textures first (will be updated async)
+    let material;
+    const matIndex = prim.material;
+    if (matIndex !== undefined && gltf.materials) {
+      const matDef = gltf.materials[matIndex];
+      material = buildMaterial(matDef, THREE, null);
+    }
+    if (!material) {
+      material = new THREE.MeshStandardMaterial({ color: 0x888888, side: THREE.DoubleSide });
+    }
+
+    const mesh = new THREE.Mesh(geometry, material);
+    mesh.name = (meshDef.name || "mesh_" + meshIndex) + "_prim_" + pi;
+    mesh._matDef = gltf.materials ? gltf.materials[matIndex] : null;
+    mesh._primIndex = pi;
+    group.add(mesh);
+  });
+
+  console.info("[GLB] buildMesh done, group children:", group.children.length, "name:", group.name);
+  return group;
+}
+
+// Load textures from GLB binary data - saves to temp files and loads with TextureLoader
+function loadTexturesFromGLB(gltf, buffers, bufferViews, THREE) {
+  return new Promise((resolve) => {
+    const gltfTextures = gltf.textures || [];
+    const gltfImages = gltf.images || [];
+
+    console.info("[GLB] loadTexturesFromGLB: textures:", gltfTextures.length, "images:", gltfImages.length);
+
+    const textures = [];
+    let pending = 0;
+    let loaded = 0;
+
+    gltfTextures.forEach((texDef, texIdx) => {
+      const sourceIdx = texDef.source;
+      if (sourceIdx === undefined) {
+        textures[texIdx] = null;
+        return;
+      }
+
+      const imageDef = gltfImages[sourceIdx];
+      if (!imageDef) {
+        textures[texIdx] = null;
+        return;
+      }
+
+      let imageData = null;
+
+      // Image data embedded in buffer view
+      if (imageDef.bufferView !== undefined) {
+        const bv = bufferViews[imageDef.bufferView];
+        if (bv !== undefined) {
+          const buffer = buffers[bv.buffer];
+          if (buffer) {
+            const byteOffset = (bv.byteOffset || 0) + (imageDef.byteOffset || 0);
+            const byteLength = bv.byteLength;
+            try {
+              const slice = buffer.slice(byteOffset, byteOffset + byteLength);
+              imageData = new Uint8Array(slice);
+            } catch (e) {
+              console.warn("[GLB] Failed to extract texture data:", e);
+            }
+          }
+        }
+      }
+
+      if (!imageData) {
+        textures[texIdx] = null;
+        return;
+      }
+
+      // Determine image format - check magic bytes
+      let ext = '.png';
+      let mime = 'image/png';
+      // Check for JPEG magic bytes (FF D8)
+      if (imageData.length >= 2 && imageData[0] === 0xFF && imageData[1] === 0xD8) {
+        ext = '.jpg';
+        mime = 'image/jpeg';
+        console.info("[GLB] Detected JPEG texture:", texIdx);
+      } else if (imageData.length >= 4) {
+        // Verify PNG header (89 50 4E 47)
+        const isPng = imageData[0] === 0x89 && imageData[1] === 0x50 && imageData[2] === 0x4E && imageData[3] === 0x47;
+        console.info("[GLB] Texture", texIdx, "is", isPng ? "valid PNG" : "unknown format",
+          "header:", imageData[0].toString(16), imageData[1].toString(16), imageData[2].toString(16), imageData[3].toString(16));
+      }
+
+      // Save to temp file and load
+      pending++;
+      const tempPath = wx.env.USER_DATA_PATH + '/tex_' + texIdx + ext;
+      const arrayBuffer = imageData.buffer.slice(imageData.byteOffset, imageData.byteOffset + imageData.byteLength);
+
+      wx.getFileSystemManager().writeFile({
+        filePath: tempPath,
+        data: arrayBuffer,
+        success: function() {
+          const that = this;
+          wx.getFileSystemManager().readFile({
+            filePath: tempPath,
+            encoding: 'base64',
+            success: function(res) {
+              var dataUri = 'data:' + mime + ';base64,' + res.data;
+              var loader = new THREE.TextureLoader();
+              loader.load(dataUri, function(tex) {
+                tex.flipY = false;
+                tex.generateMipmaps = true;
+                tex.minFilter = THREE.LinearMipmapLinearFilter;
+                tex.magFilter = THREE.LinearFilter;
+                tex.wrapS = THREE.RepeatWrapping;
+                tex.wrapT = THREE.RepeatWrapping;
+                if (typeof THREE.sRGBEncoding !== 'undefined') {
+                  tex.encoding = THREE.sRGBEncoding;
+                }
+                tex.needsUpdate = true;
+                textures[texIdx] = tex;
+                loaded++;
+                console.info("[GLB] Texture loaded:", texIdx, "size:", tex.image ? (tex.image.width + "x" + tex.image.height) : "unknown", "(" + loaded + "/" + pending + ")");
+                if (loaded >= pending) {
+                  resolve(textures);
+                }
+              }, undefined, function(err) {
+                console.warn("[GLB] Texture load error:", texIdx, err);
+                textures[texIdx] = null;
+                loaded++;
+                if (loaded >= pending) {
+                  resolve(textures);
+                }
+              });
+            },
+            fail: function(err) {
+              console.warn("[GLB] Failed to read texture file for base64:", texIdx, err);
+              textures[texIdx] = null;
+              loaded++;
+              if (loaded >= pending) {
+                resolve(textures);
+              }
+            }
+          });
+        },
+        fail: function(err) {
+          console.warn("[GLB] Failed to write texture file:", texIdx, err);
+          textures[texIdx] = null;
+          loaded++;
+          if (loaded >= pending) {
+            resolve(textures);
+          }
+        }
+      });
+    });
+
+    // If no textures to load
+    if (pending === 0) {
+      resolve(textures);
+    }
+  });
+}
+
+function buildMaterial(matDef, THREE, textures) {
+  if (!matDef) return null;
+
+  const pb = matDef.pbrMetallicRoughness || {};
+  const extensions = matDef.extensions || {};
+  const specGloss = extensions.KHR_materials_pbrSpecularGlossiness || {};
+
+  const mat = new THREE.MeshStandardMaterial({ side: THREE.DoubleSide });
+  mat.color = new THREE.Color(1, 1, 1);
+
+  // Check for KHR_materials_pbrSpecularGlossiness first
+  const diffuseTex = specGloss.diffuseTexture;
+  const specularGlossinessTex = specGloss.specularGlossinessTexture;
+  const diffuseFactor = specGloss.diffuseFactor;
+  const specularFactor = specGloss.specularFactor;
+
+  if (diffuseTex) {
+    const texIndex = diffuseTex.index !== undefined ? diffuseTex.index : diffuseTex;
+    console.info("[GLB] Using KHR_materials_pbrSpecularGlossiness diffuseTexture:", texIndex);
+    // Ensure color is white so texture colors show through
+    mat.color = new THREE.Color(1, 1, 1);
+    if (texIndex !== undefined && textures && textures[texIndex]) {
+      mat.map = textures[texIndex];
+      if (typeof THREE.sRGBEncoding !== 'undefined') {
+        mat.map.encoding = THREE.sRGBEncoding;
+      }
+      mat.map.needsUpdate = true;
+      console.info("[GLB] Applied diffuseTexture:", texIndex);
+    }
+
+    // Apply diffuse factor if present
+    if (diffuseFactor) {
+      mat.color = new THREE.Color(diffuseFactor[0], diffuseFactor[1], diffuseFactor[2]);
+      mat.opacity = diffuseFactor[3];
+      if (diffuseFactor[3] < 1) mat.transparent = true;
     }
   }
-  return output;
-}
 
-function parseGLB(arrayBuffer) {
-  const view = new DataView(arrayBuffer);
-  if (view.byteLength < 20 || view.getUint32(0, true) !== GLB_MAGIC) {
-    throw new Error("不是有效的 GLB 文件");
-  }
-  if (view.getUint32(4, true) !== 2) {
-    throw new Error("仅支持 GLB 2.0");
+  // Apply specular/glossiness if present
+  // Note: specGloss textures require special conversion - skip for now to avoid WebGL errors
+  if (specularGlossinessTex) {
+    const texIndex = specularGlossinessTex.index !== undefined ? specularGlossinessTex.index : specularGlossinessTex;
+    console.info("[GLB] specGloss texture found at index:", texIndex, "- using diffuse only");
   }
 
-  let offset = 12;
-  let json = null;
-  let binary = null;
-  while (offset + 8 <= view.byteLength) {
-    const length = view.getUint32(offset, true);
-    const type = view.getUint32(offset + 4, true);
-    const start = offset + 8;
-    const end = start + length;
-    if (end > view.byteLength) throw new Error("GLB 数据块长度异常");
-    if (type === JSON_CHUNK) {
-      const text = decodeUtf8(new Uint8Array(arrayBuffer, start, length)).replace(/[\u0000\s]+$/, "");
-      json = JSON.parse(text);
-    } else if (type === BIN_CHUNK) {
-      binary = arrayBuffer.slice(start, end);
+  // Fallback to standard PBR
+  if (!diffuseTex) {
+    // PBR base color
+    if (pb.baseColorFactor) {
+      const c = pb.baseColorFactor;
+      mat.color = new THREE.Color(c[0], c[1], c[2]);
+      mat.opacity = c[3];
+      if (c[3] < 1) mat.transparent = true;
+    } else {
+      // Default to white so textured models show correct colors
+      mat.color = new THREE.Color(1, 1, 1);
     }
-    offset = end;
-  }
 
-  if (!json || !binary) throw new Error("GLB 缺少 JSON 或 BIN 数据块");
-  if (json.extensionsRequired && json.extensionsRequired.length) {
-    throw new Error(`模型包含暂不支持的扩展：${json.extensionsRequired.join(", ")}`);
-  }
-  return { json, binary };
-}
-
-function sliceBuffer(buffer, start, length) {
-  return buffer.slice(start, start + length);
-}
-
-function createAccessor(json, binary, accessorIndex, THREE) {
-  const accessor = json.accessors[accessorIndex];
-  if (!accessor || accessor.bufferView === undefined) {
-    throw new Error(`Accessor ${accessorIndex} 缺少 bufferView`);
-  }
-  const bufferView = json.bufferViews[accessor.bufferView];
-  const component = COMPONENTS[accessor.componentType];
-  const itemSize = TYPE_SIZE[accessor.type];
-  if (!bufferView || !component || !itemSize) {
-    throw new Error(`Accessor ${accessorIndex} 使用了不支持的数据格式`);
-  }
-
-  const viewOffset = Number(bufferView.byteOffset || 0);
-  const accessorOffset = Number(accessor.byteOffset || 0);
-  const byteOffset = viewOffset + accessorOffset;
-  const packedStride = component.bytes * itemSize;
-  const byteStride = Number(bufferView.byteStride || packedStride);
-  let values;
-
-  if (byteStride === packedStride && byteOffset % component.bytes === 0) {
-    values = new component.ArrayType(binary, byteOffset, accessor.count * itemSize);
-  } else {
-    values = new component.ArrayType(accessor.count * itemSize);
-    const dataView = new DataView(binary);
-    for (let row = 0; row < accessor.count; row += 1) {
-      for (let column = 0; column < itemSize; column += 1) {
-        const sourceOffset = byteOffset + row * byteStride + column * component.bytes;
-        values[row * itemSize + column] = dataView[component.getter](sourceOffset, true);
+    // Base color texture
+    const baseColorTex = pb.baseColorTexture;
+    if (baseColorTex) {
+      const texIndex = baseColorTex.index !== undefined ? baseColorTex.index : baseColorTex;
+      // Ensure color is white when texture is applied
+      mat.color = new THREE.Color(1, 1, 1);
+      if (texIndex !== undefined && textures && textures[texIndex]) {
+        mat.map = textures[texIndex];
+        if (typeof THREE.sRGBEncoding !== 'undefined') {
+          mat.map.encoding = THREE.sRGBEncoding;
+        }
+        mat.map.needsUpdate = true;
+        console.info("[GLB] Applied baseColorTexture:", texIndex);
       }
     }
   }
 
-  return new THREE.BufferAttribute(values, itemSize, !!accessor.normalized);
+  mat.metalness = pb.metallicFactor !== undefined ? pb.metallicFactor : 0;
+  mat.roughness = pb.roughnessFactor !== undefined ? pb.roughnessFactor : 0.5;
+
+  // Handle normal texture
+  if (matDef.normalTexture && textures) {
+    const normalIndex = matDef.normalTexture.index;
+    if (textures[normalIndex]) {
+      mat.normalMap = textures[normalIndex];
+      mat.normalMap.needsUpdate = true;
+      if (matDef.normalTexture.scale !== undefined) {
+        mat.normalScale = new THREE.Vector2(matDef.normalTexture.scale, matDef.normalTexture.scale);
+      }
+      console.info("[GLB] Applied normalTexture:", normalIndex);
+    }
+  }
+
+  // Handle emissive texture
+  if (matDef.emissiveTexture && textures) {
+    const emissiveIndex = matDef.emissiveTexture.index;
+    if (textures[emissiveIndex]) {
+      mat.emissiveMap = textures[emissiveIndex];
+      if (typeof THREE.sRGBEncoding !== 'undefined') {
+        mat.emissiveMap.encoding = THREE.sRGBEncoding;
+      }
+      mat.emissiveMap.needsUpdate = true;
+      console.info("[GLB] Applied emissiveTexture:", emissiveIndex);
+    }
+  }
+
+  // Handle emissive factor
+  if (matDef.emissiveFactor) {
+    mat.emissive = new THREE.Color(matDef.emissiveFactor[0], matDef.emissiveFactor[1], matDef.emissiveFactor[2]);
+  }
+
+  if (matDef.doubleSided) mat.side = THREE.DoubleSide;
+
+  // Handle alpha mode
+  if (matDef.alphaMode === 'BLEND') {
+    mat.transparent = true;
+    mat.opacity = 0.5;
+  } else if (matDef.alphaMode === 'MASK') {
+    mat.alphaTest = 0.5;
+  }
+
+  // Enable vertex colors if present
+  if (matDef._hasVertexColors) {
+    mat.vertexColors = true;
+  } else {
+    mat.vertexColors = false;
+  }
+
+  console.info("[GLB] material:", matDef.name || "unnamed",
+    "color:", mat.color.getHexString(),
+    "map:", mat.map ? "yes" : "no",
+    "normalMap:", mat.normalMap ? "yes" : "no",
+    "emissiveMap:", mat.emissiveMap ? "yes" : "no",
+    "metalness:", mat.metalness,
+    "roughness:", mat.roughness);
+
+  return mat;
 }
 
-function writeImageFile(bytes, index, mimeType, assetKey) {
-  const extension = mimeType === "image/jpeg" ? "jpg" : "png";
-  const safeKey = String(assetKey || "model").replace(/[^a-zA-Z0-9_-]/g, "-");
-  const filePath = `${wx.env.USER_DATA_PATH}/ar-${safeKey}-texture-${index}.${extension}`;
-  return new Promise((resolve, reject) => {
-    wx.getFileSystemManager().writeFile({
-      filePath,
-      data: bytes,
-      success: () => resolve(filePath),
-      fail: reject,
+// Export a function to apply textures to a loaded scene (call after loadGLB resolves)
+function applyTexturesToScene(scene, gltf, binaryBuffer, THREE) {
+  return new Promise((resolve) => {
+    console.info("[GLB] applyTexturesToScene called");
+
+    const bufferViews = gltf.bufferViews || [];
+    const buffers = (gltf.buffers || []).map((buf, i) => {
+      if (!binaryBuffer) return null;
+      return i === 0 ? binaryBuffer : null;
+    });
+
+    // Load textures from GLB
+    loadTexturesFromGLB(gltf, buffers, bufferViews, THREE).then((textures) => {
+      console.info("[GLB] Textures loaded, applying to materials...");
+
+      // Apply textures to all meshes
+      let meshCount = 0;
+      scene.traverse((obj) => {
+        if (obj.isMesh && obj._matDef !== null) {
+          const matDef = obj._matDef;
+          // Check if geometry has vertex colors
+          const hasVertexColors = obj.geometry && obj.geometry.attributes.color;
+          const matDefWithVColors = Object.assign({}, matDef, { _hasVertexColors: hasVertexColors });
+          const newMat = buildMaterial(matDefWithVColors, THREE, textures);
+          if (newMat) {
+            obj.material = newMat;
+            meshCount++;
+          }
+        }
+      });
+
+      console.info("[GLB] Textures applied to", meshCount, "meshes");
+      resolve();
     });
   });
 }
 
-function createCanvasImage(canvas, filePath) {
-  return new Promise((resolve, reject) => {
-    const image = canvas.createImage();
-    image.onload = () => resolve(image);
-    image.onerror = (event) => reject(new Error(`纹理加载失败：${filePath} ${event && event.errMsg ? event.errMsg : ""}`));
-    image.src = filePath;
-  });
-}
+// Export both functions
+module.exports = { loadGLB, applyTexturesToScene };
 
-async function createTextures(json, binary, THREE, canvas, onProgress, assetKey) {
-  const imageDefs = json.images || [];
-  const images = [];
-  for (let index = 0; index < imageDefs.length; index += 1) {
-    const definition = imageDefs[index];
-    if (definition.bufferView === undefined) {
-      throw new Error("当前加载器仅支持 GLB 内嵌纹理");
-    }
-    const view = json.bufferViews[definition.bufferView];
-    const bytes = sliceBuffer(binary, Number(view.byteOffset || 0), Number(view.byteLength || 0));
-    const path = await writeImageFile(bytes, index, definition.mimeType || "image/png", assetKey);
-    images[index] = await createCanvasImage(canvas, path);
-    if (onProgress) onProgress(15 + Math.round(((index + 1) / Math.max(1, imageDefs.length)) * 40));
+function getAccessorData(accessor, buffers, bufferViews) {
+  if (!accessor) return null;
+  const bvIndex = accessor.bufferView;
+  const bv = bufferViews[bvIndex];
+  if (bv === undefined) return null;
+
+  const buffer = buffers[bv.buffer];
+  if (!buffer) return null;
+
+  const byteOffset = (bv.byteOffset || 0) + (accessor.byteOffset || 0);
+  const byteStride = bv.byteStride;
+  const count = accessor.count;
+  const compType = accessor.componentType;
+  const compCount = getCompCount(accessor);
+
+  if (byteStride && byteStride !== compCount * getCompSize(compType)) {
+    // Interleaved — skip for simplicity
   }
 
-  return (json.textures || []).map((definition) => {
-    const texture = new THREE.Texture(images[definition.source]);
-    texture.flipY = false;
-    texture.needsUpdate = true;
-    const sampler = (json.samplers || [])[definition.sampler] || {};
-    if (sampler.wrapS === 33071) texture.wrapS = THREE.ClampToEdgeWrapping;
-    if (sampler.wrapS === 33648) texture.wrapS = THREE.MirroredRepeatWrapping;
-    if (sampler.wrapT === 33071) texture.wrapT = THREE.ClampToEdgeWrapping;
-    if (sampler.wrapT === 33648) texture.wrapT = THREE.MirroredRepeatWrapping;
-    return texture;
-  });
-}
-
-function createMaterials(json, textures, THREE) {
-  return (json.materials || []).map((definition) => {
-    const pbr = definition.pbrMetallicRoughness || {};
-    const color = pbr.baseColorFactor || [1, 1, 1, 1];
-    const material = new THREE.MeshStandardMaterial({
-      color: new THREE.Color(color[0], color[1], color[2]),
-      opacity: color[3] === undefined ? 1 : color[3],
-      transparent: definition.alphaMode === "BLEND" || color[3] < 1,
-      alphaTest: definition.alphaMode === "MASK" ? Number(definition.alphaCutoff || 0.5) : 0,
-      metalness: pbr.metallicFactor === undefined ? 1 : pbr.metallicFactor,
-      roughness: pbr.roughnessFactor === undefined ? 1 : pbr.roughnessFactor,
-      side: definition.doubleSided ? THREE.DoubleSide : THREE.FrontSide,
-    });
-    material.name = definition.name || "";
-    if (pbr.baseColorTexture) {
-      material.map = textures[pbr.baseColorTexture.index];
-      if (material.map && THREE.sRGBEncoding !== undefined) material.map.encoding = THREE.sRGBEncoding;
-    }
-    if (definition.normalTexture) {
-      material.normalMap = textures[definition.normalTexture.index];
-      const scale = definition.normalTexture.scale === undefined ? 1 : definition.normalTexture.scale;
-      material.normalScale = new THREE.Vector2(scale, scale);
-    }
-    if (definition.emissiveFactor) {
-      material.emissive = new THREE.Color(
-        definition.emissiveFactor[0],
-        definition.emissiveFactor[1],
-        definition.emissiveFactor[2]
-      );
-    }
-    material.needsUpdate = true;
-    return material;
-  });
-}
-
-function createMesh(json, binary, meshIndex, materials, THREE) {
-  const definition = json.meshes[meshIndex];
-  const group = new THREE.Group();
-  group.name = definition.name || `mesh-${meshIndex}`;
-  (definition.primitives || []).forEach((primitive, primitiveIndex) => {
-    if (primitive.mode !== undefined && primitive.mode !== 4) {
-      throw new Error("当前加载器只支持三角形网格");
-    }
-    const geometry = new THREE.BufferGeometry();
-    const setAttribute = (name, attribute) => {
-      if (typeof geometry.setAttribute === "function") geometry.setAttribute(name, attribute);
-      else geometry.addAttribute(name, attribute);
-    };
-    const attributes = primitive.attributes || {};
-    if (attributes.POSITION !== undefined) setAttribute("position", createAccessor(json, binary, attributes.POSITION, THREE));
-    if (attributes.NORMAL !== undefined) setAttribute("normal", createAccessor(json, binary, attributes.NORMAL, THREE));
-    if (attributes.TEXCOORD_0 !== undefined) setAttribute("uv", createAccessor(json, binary, attributes.TEXCOORD_0, THREE));
-    if (primitive.indices !== undefined) geometry.setIndex(createAccessor(json, binary, primitive.indices, THREE));
-    if (attributes.NORMAL === undefined) geometry.computeVertexNormals();
-    geometry.computeBoundingBox();
-    geometry.computeBoundingSphere();
-    const material = materials[primitive.material] || new THREE.MeshStandardMaterial({ color: 0xffffff });
-    const mesh = new THREE.Mesh(geometry, material);
-    mesh.name = `${group.name}-${primitiveIndex}`;
-    group.add(mesh);
-  });
-  return group;
-}
-
-function applyNodeTransform(object, definition, THREE) {
-  object.name = definition.name || object.name;
-  if (definition.matrix) {
-    const matrix = new THREE.Matrix4().fromArray(definition.matrix);
-    matrix.decompose(object.position, object.quaternion, object.scale);
-    return;
+  const totalBytes = count * compCount * getCompSize(compType);
+  let slice;
+  try {
+    slice = buffer.slice(byteOffset, byteOffset + totalBytes);
+  } catch (e) {
+    const view = new Uint8Array(buffer, byteOffset, totalBytes);
+    return new Uint8Array(view);
   }
-  if (definition.translation) object.position.fromArray(definition.translation);
-  if (definition.rotation) object.quaternion.fromArray(definition.rotation);
-  if (definition.scale) object.scale.fromArray(definition.scale);
+
+  switch (compType) {
+    case 5120: return new Int8Array(slice);
+    case 5121: return new Uint8Array(slice);
+    case 5122: return new Int16Array(slice);
+    case 5123: return new Uint16Array(slice);
+    case 5125: return new Uint32Array(slice);
+    case 5126: return new Float32Array(slice);
+    default:   return new Uint8Array(slice);
+  }
 }
 
-function createScene(json, binary, materials, THREE) {
-  const meshCache = (json.meshes || []).map((_, index) => createMesh(json, binary, index, materials, THREE));
-  const nodes = (json.nodes || []).map((definition) => {
-    const object = definition.mesh === undefined ? new THREE.Group() : meshCache[definition.mesh].clone(true);
-    applyNodeTransform(object, definition, THREE);
-    return object;
-  });
-  (json.nodes || []).forEach((definition, index) => {
-    (definition.children || []).forEach((childIndex) => nodes[index].add(nodes[childIndex]));
-  });
-
-  const root = new THREE.Group();
-  root.name = "GLBScene";
-  const sceneIndex = json.scene === undefined ? 0 : json.scene;
-  const sceneDefinition = (json.scenes || [])[sceneIndex] || { nodes: [] };
-  (sceneDefinition.nodes || []).forEach((nodeIndex) => root.add(nodes[nodeIndex]));
-  return root;
+function getCompCount(accessor) {
+  const t = accessor.type;
+  if (t === "SCALAR") return 1;
+  if (t === "VEC2")   return 2;
+  if (t === "VEC3")   return 3;
+  if (t === "VEC4")   return 4;
+  if (t === "MAT2")   return 4;
+  if (t === "MAT3")   return 9;
+  if (t === "MAT4")   return 16;
+  return 3;
 }
 
-async function loadGLBScene(filePath, THREE, canvas, onProgress, assetKey) {
-  if (!filePath || !THREE || !canvas) throw new Error("GLB 加载参数不完整");
-  if (onProgress) onProgress(2);
-  const arrayBuffer = await readFile(filePath);
-  if (onProgress) onProgress(10);
-  const { json, binary } = parseGLB(arrayBuffer);
-  const textures = await createTextures(json, binary, THREE, canvas, onProgress, assetKey);
-  if (onProgress) onProgress(62);
-  const materials = createMaterials(json, textures, THREE);
-  const scene = createScene(json, binary, materials, THREE);
-  if (onProgress) onProgress(100);
-  return { scene, animations: [] };
+function getCompSize(compType) {
+  if (compType === 5120 || compType === 5121) return 1;
+  if (compType === 5122 || compType === 5123) return 2;
+  if (compType === 5125) return 4;
+  if (compType === 5126) return 4;
+  return 1;
 }
 
-module.exports = { loadGLBScene };
+function getUint32(buffer, offset) {
+  const view = new DataView(buffer instanceof ArrayBuffer ? buffer : buffer.buffer || buffer);
+  return view.getUint32(offset, true);
+}
+
+function decodeUTF8(buffer) {
+  const arr = buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer);
+  let result = "";
+  let i = 0;
+  while (i < arr.length) {
+    const c = arr[i++];
+    if (c < 0x80) {
+      result += String.fromCharCode(c);
+    } else if (c < 0xE0) {
+      result += String.fromCharCode(((c & 0x1F) << 6) | (arr[i++] & 0x3F));
+    } else if (c < 0xF0) {
+      result += String.fromCharCode(((c & 0x0F) << 12) | ((arr[i++] & 0x3F) << 6) | (arr[i++] & 0x3F));
+    } else {
+      const cp = ((c & 0x07) << 18) | ((arr[i++] & 0x3F) << 12) | ((arr[i++] & 0x3F) << 6) | (arr[i++] & 0x3F);
+      if (cp > 0xFFFF) {
+        result += String.fromCharCode(0xD800 + ((cp - 0x10000) >> 10));
+        result += String.fromCharCode(0xDC00 + ((cp - 0x10000) & 0x3FF));
+      } else {
+        result += String.fromCharCode(cp);
+      }
+    }
+  }
+  return result;
+}
+
+const B64_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+
+function base64Encode(str) {
+  let result = '';
+  const bytes = new Uint8Array(str.length);
+  for (let i = 0; i < str.length; i++) {
+    bytes[i] = str.charCodeAt(i);
+  }
+  const len = bytes.length;
+  let i = 0;
+  while (i < len) {
+    const b1 = bytes[i++];
+    const b2 = i < len ? bytes[i++] : NaN;
+    const b3 = i < len ? bytes[i++] : NaN;
+    result += B64_CHARS[b1 >> 2];
+    result += B64_CHARS[((b1 & 3) << 4) | (b2 >> 4)];
+    result += isNaN(b2) ? '=' : B64_CHARS[((b2 & 15) << 2) | (b3 >> 6)];
+    result += isNaN(b3) ? '=' : B64_CHARS[b3 & 63];
+  }
+  return result;
+}

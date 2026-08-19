@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#020813" />
+    <meta name="description" content="电竞文旅 AI：AI 情感对话、AR 奇幻扫描与电竞文旅路线体验。" />
+    <title>电竞文旅 AI</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="desktop-shell">
+      <section class="phone-frame" aria-label="小程序手机预览">
+        <div class="phone-speaker" aria-hidden="true"></div>
+        <div class="phone-screen">
+          <div id="app" aria-live="polite"></div>
+          <nav class="web-nav" aria-label="核心功能导航">
+            <button class="web-nav-item is-active" type="button" data-page="home" aria-label="首页"><span>⌂</span><small>首页</small></button>
+            <button class="web-nav-item" type="button" data-page="chat" aria-label="AI 对话"><span>✦</span><small>AI 对话</small></button>
+            <button class="web-nav-item" type="button" data-page="ar" aria-label="AR 扫描"><span>◉</span><small>AR 扫描</small></button>
+            <button class="web-nav-item" type="button" data-page="journey" aria-label="文旅路线"><span>⌖</span><small>文旅路线</small></button>
+          </nav>
+        </div>
+      </section>
+      <aside class="deploy-note" aria-label="网页版说明">
+        <div class="note-kicker">Cloud Studio 网页版说明</div>
+        <h1>电竞文旅 AI · H5 体验版</h1>
+        <p>手机框内已同步新版小程序的视觉与核心流程，包括首页、AI 情感对话、AR 奇幻扫描和电竞文旅路线。</p>
+        <p>网页版可体验内容浏览、智能对话和路线生成。<strong>AR 相机与 3D 投影</strong>会受浏览器权限和设备能力限制，完整效果仍以微信小程序真机版为准。</p>
+        <p class="note-emphasis">建议使用手机扫码体验小程序，以获得完整的摄像头、AR 与设备交互能力。</p>
+        <figure class="qr-card">
+          <img src="./assets/demo-qr.png" alt="小程序体验二维码" />
+        </figure>
+      </aside>
+    </main>
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+    <script src="./app.js"></script>
+  </body>
+</html>

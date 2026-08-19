@@ -38,7 +38,13 @@
       <view wx:if="{{item.role === 'ai'}}" class="message-content">
         <image class="avatar ai-avatar" src="/imgs/chat/robot.png" mode="aspectFit"></image>
         <view class="message-bubble ai-bubble {{item.isError ? 'error-bubble' : ''}}">
-          <text class="message-text" user-select="{{true}}">{{item.content}}</text>
+          <view wx:if="{{item.segments && item.segments.length}}" class="message-rich">
+            <block wx:for="{{item.segments}}" wx:for-item="seg" wx:key="idx" wx:for-index="idx">
+              <text wx:if="{{seg.type === 'text'}}" user-select="{{true}}" decode="{{true}}">{{seg.content}}</text>
+              <image wx:elif="{{seg.type === 'image'}}" class="message-image" src="{{seg.url}}" mode="widthFix" data-url="{{seg.url}}" bindtap="onImageTap" show-menu-by-longpress="{{true}}" lazy-load="{{true}}"></image>
+            </block>
+          </view>
+          <text wx:else class="message-text" user-select="{{true}}">{{item.content}}</text>
           <view wx:if="{{item.suggestions}}" class="suggestions">
             <view wx:for="{{item.suggestions}}" wx:for-item="suggestion" wx:key="index" class="suggestion-btn" data-suggestion="{{suggestion}}" bindtap="onSuggestionTap">{{suggestion}}</view>
           </view>

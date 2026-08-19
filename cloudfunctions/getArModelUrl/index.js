@@ -6,7 +6,13 @@ const MODEL_FILES = Object.freeze({
   "hero-daji":
     "cloud://cloud1-d9gd58pgib59d7259.636c-cloud1-d9gd58pgib59d7259-1420321518/daji.glb",
   "hero-jialuo":
-    "cloud://cloud1-d9gd58pgib59d7259.636c-cloud1-d9gd58pgib59d7259-1420321518/jialuo-v1.glb",
+    "cloud://cloud1-d9gd58pgib59d7259.636c-cloud1-d9gd58pgib59d7259-1420321518/jialuo2.glb",
+  "hero-wangzhaojun":
+    "cloud://cloud1-d9gd58pgib59d7259.636c-cloud1-d9gd58pgib59d7259-1420321518/wangzhaojun.glb",
+  "hero-yao":
+    "cloud://cloud1-d9gd58pgib59d7259.636c-cloud1-d9gd58pgib59d7259-1420321518/yao-fz.glb",
+  "hero-yangyuhuan":
+    "cloud://cloud1-d9gd58pgib59d7259.636c-cloud1-d9gd58pgib59d7259-1420321518/yyh.glb",
 });
 
 exports.main = async (event) => {

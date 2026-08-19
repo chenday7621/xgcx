@@ -1,13 +1,16 @@
 const app = getApp();
-const { loadGLBScene } = require("../../lib/gltf-runtime-loader.js");
+const { loadGLB } = require("../../lib/gltf-runtime-loader.js");
 
 const MODEL_TARGET_SIZE = 1.1;
-const MODEL_MIN_SCALE = 0.02;
-const MODEL_MAX_SCALE = 10;
+const MODEL_MIN_SCALE = 0.1;
+const MODEL_MAX_SCALE = 60.0;
 const FALLBACK_NEAR_SCALE = 1.6;
 const FALLBACK_FAR_SCALE = 0.75;
 const DAJI_MODEL_FILE_ID = "cloud://cloud1-d9gd58pgib59d7259.636c-cloud1-d9gd58pgib59d7259-1420321518/daji.glb";
-const JIALUO_MODEL_FILE_ID = "cloud://cloud1-d9gd58pgib59d7259.636c-cloud1-d9gd58pgib59d7259-1420321518/jialuo-v1.glb";
+const JIALUO_MODEL_FILE_ID = "cloud://cloud1-d9gd58pgib59d7259.636c-cloud1-d9gd58pgib59d7259-1420321518/jialuo2.glb";
+const WANGZHAOJUN_MODEL_FILE_ID = "cloud://cloud1-d9gd58pgib59d7259.636c-cloud1-d9gd58pgib59d7259-1420321518/wangzhaojun.glb";
+const YAO_MODEL_FILE_ID = "cloud://cloud1-d9gd58pgib59d7259.636c-cloud1-d9gd58pgib59d7259-1420321518/yao-fz.glb";
+const YANGYUHUAN_MODEL_FILE_ID = "cloud://cloud1-d9gd58pgib59d7259.636c-cloud1-d9gd58pgib59d7259-1420321518/yyh.glb";
 
 Page({
   data: {
@@ -28,6 +31,7 @@ Page({
         effect: "妲己3D模型",
         intro: "王者荣耀英雄妲己的AR实景投影模型。",
         modelFileId: DAJI_MODEL_FILE_ID,
+        modelScaleMultiplier: 0.28,
       },
       {
         id: "hero-jialuo",
@@ -36,7 +40,34 @@ Page({
         effect: "伽罗3D模型",
         intro: "王者荣耀英雄伽罗的AR实景投影模型。",
         modelFileId: JIALUO_MODEL_FILE_ID,
-        modelScaleMultiplier: 100,
+        modelScaleMultiplier: 1,
+      },
+      {
+        id: "hero-wangzhaojun",
+        name: "王昭君",
+        title: "冰雪之华",
+        effect: "王昭君3D模型",
+        intro: "王者荣耀英雄王昭君的AR实景投影模型。",
+        modelFileId: WANGZHAOJUN_MODEL_FILE_ID,
+        modelScaleMultiplier: 1,
+      },
+      {
+        id: "hero-yao",
+        name: "瑶",
+        title: "鹿灵守心",
+        effect: "瑶3D模型",
+        intro: "王者荣耀英雄瑶的AR实景投影模型。",
+        modelFileId: YAO_MODEL_FILE_ID,
+        modelScaleMultiplier: 1,
+      },
+      {
+        id: "hero-yangyuhuan",
+        name: "杨玉环",
+        title: "霓裳风华",
+        effect: "杨玉环3D模型",
+        intro: "王者荣耀英雄杨玉环的AR实景投影模型。",
+        modelFileId: YANGYUHUAN_MODEL_FILE_ID,
+        modelScaleMultiplier: 45,
       },
     ],
     heroIndex: 0,
@@ -70,6 +101,7 @@ Page({
     this._targetYaw = 0;
     this._targetPitch = 0;
     this._placedBaseScale = 1;
+    this.arMixer = null;
     this.setData({ selectedHero: this.getHeroByIndex(0) });
     this.loadScanHistory();
     this.checkPermissionAndInit();
@@ -209,6 +241,8 @@ Page({
       this.renderer.setSize(this.canvasCssWidth, this.canvasCssHeight, false);
       this.renderer.setClearColor(0x000000, 0);
       this.renderer.autoClear = false;
+      this.renderer.gammaOutput = true;
+      this.renderer.gammaFactor = 2.2;
       if (THREE.sRGBEncoding !== undefined) this.renderer.outputEncoding = THREE.sRGBEncoding;
 
       this.scene = new THREE.Scene();
@@ -264,6 +298,7 @@ Page({
   renderFrame() {
     if (!this.glReady || !this.renderer || !this.scene || !this.camera) return;
     const delta = this.clock ? this.clock.getDelta() : 0.016;
+    if (this.arMixer) this.arMixer.update(delta);
     if (this.data.heroPlaced && !this.vkSession) this.updateFallbackPseudoAR(delta);
 
     if (this.vkSession && this.vkFrame && this.vkFrame.camera) {
@@ -591,14 +626,15 @@ Page({
   },
 
   loadModelFromPath(filePath, hero, loadToken) {
-    return loadGLBScene(filePath, this.THREE, this.canvas, (progress) => {
-      if (loadToken === this.modelLoadToken) this.setData({ scanHint: `${hero.name}模型加载中 ${progress}%` });
-    }, hero.id).then(({ scene }) => {
+    return loadGLB(filePath, this.THREE, (pct) => {
+      if (loadToken === this.modelLoadToken) this.setData({ scanHint: `${hero.name}模型加载中 ${pct}%` });
+    }).then(({ scene, animations }) => {
       if (loadToken !== this.modelLoadToken) {
         this.disposeObject3D(scene);
         return false;
       }
       if (this.arModel && this.scene) this.scene.remove(this.arModel);
+      this.arMixer = null;
       const THREE = this.THREE;
       const root = scene;
       const box = new THREE.Box3().setFromObject(root);
@@ -621,6 +657,9 @@ Page({
       this.arModel = root;
       this.arModelHeroId = hero.id;
       this._placedBaseScale = root.scale.x || scale;
+      if (animations && animations.length > 0) {
+        this.arMixer = new THREE.AnimationMixer(root);
+      }
       this.clearModelLoadTimer();
       this.setData({
         modelLoading: false,
@@ -693,13 +732,13 @@ Page({
     };
     const placeInFront = () => {
       if (!this.camera || !this.THREE) {
-        applyPosition(0, 0.35, 1.2);
+        applyPosition(0, 0.8, 1.2);
         return;
       }
       this.camera.matrixAutoUpdate = true;
       const forward = new this.THREE.Vector3(0, 0, -1).applyQuaternion(this.camera.quaternion).normalize();
       const target = this.camera.position.clone().add(forward.multiplyScalar(1.6));
-      target.y = Math.max(0.1, this.camera.position.y - 0.8);
+      target.y = Math.max(0.35, this.camera.position.y - 0.6);
       applyPosition(target.x, target.y, target.z);
     };
 
@@ -710,13 +749,17 @@ Page({
         applyPosition(transform[12], transform[13], transform[14]);
       }
     }
-    if (!placed && this.vkSession) {
+    if (!placed && this.vkSession && this.planeAnchors.length > 0) {
       try {
         const hits = this.vkSession.hitTest(nx, ny);
         if (hits && hits.length && hits[0].transform) {
           const transform = hits[0].transform;
           const hasTranslation = Math.abs(transform[12]) + Math.abs(transform[13]) + Math.abs(transform[14]) > 0.001;
-          if (hasTranslation) applyPosition(transform[12], transform[13], transform[14]);
+          if (hasTranslation) {
+            applyPosition(transform[12], transform[13], transform[14]);
+          } else {
+            placeInFront();
+          }
         }
       } catch (error) {
         console.warn("[AR] hitTest failed", error);
@@ -792,6 +835,7 @@ Page({
     }
     this.arModel = null;
     this.arModelHeroId = "";
+    this.arMixer = null;
     this.setData({
       heroIndex,
       selectedHero,
@@ -858,6 +902,7 @@ Page({
       this.disposeObject3D(this.arModel);
     }
     this.arModel = null;
+    this.arMixer = null;
     if (this.renderer && typeof this.renderer.dispose === "function") this.renderer.dispose();
     this.renderer = null;
     this.scene = null;

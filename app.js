@@ -30,13 +30,6 @@ const cities = [
 
 const quickQuestions = ["EDG选手的羁绊故事", "什么是电竞精神？", "生成我的文旅路线", "AR场馆在哪里？"];
 const homeQuestions = ["EDG选手的羁绊故事", "KPL总决赛夺冠时刻", "电竞精神是什么", "成都AG主场有什么"];
-const arHeroes = [
-  { id: "hero-daji", name: "妲己", title: "女仆咖啡", effect: "妲己3D模型", model: "./assets/models/daji.glb", scale: 2, icon: "🦊" },
-  { id: "hero-jialuo", name: "伽罗", title: "破魔之箭", effect: "伽罗3D模型", model: "./assets/models/jialuo-v1.glb", scale: 20, icon: "🏹" },
-  { id: "hero-wangzhaojun", name: "王昭君", title: "冰雪之华", effect: "王昭君3D模型", model: "./assets/models/wangzhaojun.glb", scale: 20, icon: "❄️" },
-  { id: "hero-yao", name: "瑶", title: "鹿灵守心", effect: "瑶3D模型", model: "./assets/models/yao-fz.glb", scale: 20, icon: "🦌" },
-  { id: "hero-yangyuhuan", name: "杨玉环", title: "霓裳风华", effect: "杨玉环3D模型", model: "./assets/models/yyh.glb", scale: 20, icon: "🎶" },
-];
 
 const state = {
   page: location.hash.replace("#", "") || "home",
@@ -54,9 +47,6 @@ const state = {
   scanning: false,
   scanProgress: 0,
   heroVisible: false,
-  modelLoading: true,
-  modelReady: false,
-  modelError: "",
   arHistory: store.get("arScanHistory", []),
 };
 
@@ -219,17 +209,10 @@ function welcomePanel() {
 
 function messageTemplate(message) {
   const ai = message.role === "ai";
-  const segments = ai && !message.isError ? parseContent(message.content) : null;
   return `<article class="message-item${ai ? "" : " user"}">
     <div class="message-content">
       ${ai ? `<img class="chat-avatar" src="${asset("chat/robot.png")}" alt="AI" />` : '<span class="chat-avatar user-avatar">召</span>'}
-      <div class="bubble${message.isError ? " error" : ""}">${
-        segments
-          ? segments.map((segment) => segment.type === "image"
-              ? `<img class="bubble-image" src="${escapeHtml(segment.src)}" alt="AI返回的图片" data-preview-image="${escapeHtml(segment.src)}" />`
-              : `<span class="bubble-text">${escapeHtml(segment.content)}</span>`).join("")
-          : escapeHtml(message.content)
-      }
+      <div class="bubble${message.isError ? " error" : ""}">${escapeHtml(message.content)}
         ${message.suggestions?.length ? `<div class="bubble-suggestions">${message.suggestions.map((item) => `<button type="button" data-send-question="${escapeHtml(item)}">${escapeHtml(item)}</button>`).join("")}</div>` : ""}
         <div class="message-time">${message.time || ""}</div>
       </div>
@@ -237,38 +220,10 @@ function messageTemplate(message) {
   </article>`;
 }
 
-// 把 AI 返回的内容解析成「文本段 + 图片段」数组，支持两种图片格式：
-// 1. Markdown 语法：![描述](https://xxx.png)
-// 2. 纯 URL：https://xxx.png（带 .jpg/.png/.gif/.webp/.bmp/.svg 后缀，含查询参数）
-function parseContent(content = "") {
-  const segments = [];
-  const imagePattern = /!\[([^\]]*)\]\(([^)\s]+)\)|https?:\/\/[^\s"'<>()]+\.(?:png|jpe?g|gif|webp|bmp|svg)(?:\?[^\s"'<>()]*)?/gi;
-  let lastIndex = 0;
-  let match;
-  while ((match = imagePattern.exec(content)) !== null) {
-    if (match.index > lastIndex) segments.push({ type: "text", content: content.slice(lastIndex, match.index) });
-    const src = match[2] || match[0];
-    if (src) segments.push({ type: "image", src });
-    lastIndex = match.index + match[0].length;
-  }
-  if (lastIndex < content.length) segments.push({ type: "text", content: content.slice(lastIndex) });
-  return segments.length ? segments : [{ type: "text", content }];
-}
-
-function previewImage(src) {
-  const existing = document.querySelector(".image-preview-overlay");
-  if (existing) existing.remove();
-  const overlay = document.createElement("div");
-  overlay.className = "image-preview-overlay";
-  overlay.innerHTML = `<img src="${escapeHtml(src)}" alt="预览图片" /><span class="image-preview-close">✕</span>`;
-  overlay.addEventListener("click", () => overlay.remove());
-  document.body.appendChild(overlay);
-}
-
 function renderAR() {
-  const hero = arHeroes[state.heroIndex] || arHeroes[0];
+  const hero = state.heroIndex === 0 ? { name: "牛魔", title: "无畏战魂", effect: "坚毅守护" } : { name: "测试机器人", title: "RobotExpressive", effect: "示例模型" };
   const status = state.scanning ? "扫描中" : state.scanProgress >= 100 ? "已识别" : state.cameraEnabled ? "已授权" : "待启动";
-  const hint = state.modelError ? `${hero.name}模型加载失败：${state.modelError}` : state.modelLoading ? `正在加载${hero.name}3D模型...` : state.scanning ? "请缓慢移动摄像头，让系统识别平面" : state.scanProgress >= 100 ? "识别完成，可显示英雄投影" : state.cameraEnabled ? "移动设备扫描地面或桌面" : "请授权摄像头后开始AR扫描";
+  const hint = state.scanning ? "请缓慢移动摄像头，让系统识别平面" : state.scanProgress >= 100 ? "识别完成，可显示英雄投影" : state.cameraEnabled ? "移动设备扫描地面或桌面" : "请授权摄像头后开始AR扫描";
   return `<section class="page subpage ar-page">
     <div class="star-field"></div>
     ${subHeader("AR扫描", false)}
@@ -276,8 +231,7 @@ function renderAR() {
       <div class="ar-frame-wrap">
         <div class="ar-stage">
           ${state.cameraEnabled ? '<video class="ar-video" autoplay muted playsinline data-camera></video>' : `<div class="camera-placeholder"><p>需要摄像头授权才能开启AR</p><button type="button" class="authorize-btn" data-authorize-camera><img src="${asset("ar/authorize-button.png")}" alt="授权摄像头" /></button></div>`}
-          <model-viewer class="ar-model${state.heroVisible ? "" : " is-hidden"}" data-ar-model src="${hero.model}" alt="${hero.name}3D模型" camera-controls auto-rotate autoplay ar ar-modes="webxr scene-viewer quick-look" ar-placement="floor" interaction-prompt="none" shadow-intensity="1" exposure="1.15" scale="${hero.scale} ${hero.scale} ${hero.scale}"></model-viewer>
-          <div class="ar-model-label${state.heroVisible ? "" : " is-hidden"}"><strong>${hero.name}</strong><span>${hero.title}</span></div>
+          ${state.heroVisible ? `<div class="hero-projection"><strong>${hero.name}</strong><span>${hero.title}</span><small>${hero.effect}</small></div>` : ""}
         </div>
         <img class="scan-frame" src="${asset("ar/scan-frame.png")}" alt="AR 扫描框" />
         <section class="scan-status">
@@ -286,7 +240,7 @@ function renderAR() {
         </section>
       </div>
       <div class="scan-button-row"><button type="button" class="scan-button" data-toggle-scan><img src="${asset(state.scanning ? "ar/scan-button-blank.png" : "ar/scan-button.png")}" alt="" />${state.scanning ? "<span>停止扫描</span>" : ""}</button></div>
-      <div class="hero-picker"><label for="hero-select">选择英雄</label><select id="hero-select" data-hero-select>${arHeroes.map((item, index) => `<option value="${index}"${state.heroIndex === index ? " selected" : ""}>${item.name}</option>`).join("")}</select></div>
+      <div class="hero-picker"><label for="hero-select">选择英雄</label><select id="hero-select" data-hero-select><option value="0"${state.heroIndex === 0 ? " selected" : ""}>牛魔</option><option value="1"${state.heroIndex === 1 ? " selected" : ""}>测试机器人</option></select></div>
       <div class="action-grid">
         <button type="button" class="action-btn" data-ar-action="camera"><img src="${asset("ar/action-camera.png")}" alt="切换镜头" /></button>
         <button type="button" class="action-btn" data-ar-action="hero"><img src="${asset("ar/action-hero.png")}" alt="显示或隐藏英雄" /></button>
@@ -340,10 +294,7 @@ function render() {
     if (scroll) scroll.scrollTop = scroll.scrollHeight;
     if (state.prefill) appRoot.querySelector(".chat-input")?.focus();
   }
-  if (state.page === "ar") {
-    if (state.cameraEnabled) attachCamera();
-    attachARModel();
-  }
+  if (state.page === "ar" && state.cameraEnabled) attachCamera();
   if (state.page !== "chat") {
     const page = appRoot.querySelector(".page");
     if (page) page.scrollTop = previousScrollTop;
@@ -355,7 +306,6 @@ function bindPageEvents() {
   appRoot.querySelectorAll("[data-chat-question]").forEach((node) => node.addEventListener("click", () => setPage("chat", { prefill: node.dataset.chatQuestion })));
   appRoot.querySelectorAll("[data-team-chat]").forEach((node) => node.addEventListener("click", () => setPage("chat", { prefill: `请介绍一下${node.dataset.teamChat}战队的故事` })));
   appRoot.querySelectorAll("[data-send-question]").forEach((node) => node.addEventListener("click", () => sendMessage(node.dataset.sendQuestion)));
-  appRoot.querySelectorAll("[data-preview-image]").forEach((node) => node.addEventListener("click", () => previewImage(node.dataset.previewImage)));
   const input = appRoot.querySelector(".chat-input");
   input?.addEventListener("input", (event) => {
     state.prefill = event.target.value;
@@ -371,14 +321,7 @@ function bindPageEvents() {
   appRoot.querySelectorAll("[data-route-index]").forEach((node) => node.addEventListener("click", () => { state.currentRoute = state.routes[Number(node.dataset.routeIndex)]; render(); }));
   appRoot.querySelector("[data-authorize-camera]")?.addEventListener("click", authorizeCamera);
   appRoot.querySelector("[data-toggle-scan]")?.addEventListener("click", toggleScan);
-  appRoot.querySelector("[data-hero-select]")?.addEventListener("change", (event) => {
-    state.heroIndex = Number(event.target.value);
-    state.heroVisible = false;
-    state.modelLoading = true;
-    state.modelReady = false;
-    state.modelError = "";
-    render();
-  });
+  appRoot.querySelector("[data-hero-select]")?.addEventListener("change", (event) => { state.heroIndex = Number(event.target.value); render(); });
   appRoot.querySelectorAll("[data-ar-action]").forEach((node) => node.addEventListener("click", () => handleARAction(node.dataset.arAction)));
 }
 
@@ -423,7 +366,7 @@ function recognizeEmotion(text) {
 }
 
 function suggestionsFor(text) {
-  if (/路线|旅游|文旅|打卡/.test(text)) return ["查看我的路线详情", "推荐沿途美食"];
+  if (/路线|旅游|文旅|打卡/.test(text)) return ["查看我的路线详情", "开始AR打卡"];
   if (/EDG|战队|选手|羁绊/.test(text)) return ["查看AR夺冠场景", "生成专属文旅路线"];
   return ["了解更多赛事精神", "生成文旅路线", "AR虚拟打卡"];
 }
@@ -470,46 +413,6 @@ function attachCamera() {
   if (video && state.cameraStream) video.srcObject = state.cameraStream;
 }
 
-function attachARModel() {
-  const model = appRoot.querySelector("[data-ar-model]");
-  if (!model) return;
-  model.addEventListener("load", () => {
-    state.modelLoading = false;
-    state.modelReady = true;
-    state.modelError = "";
-    updateARStatus();
-  }, { once: true });
-  model.addEventListener("error", (event) => {
-    state.modelLoading = false;
-    state.modelReady = false;
-    state.modelError = event.detail?.message || "无法读取本地GLB文件";
-    updateARStatus();
-  }, { once: true });
-}
-
-function updateARStatus() {
-  if (state.page !== "ar") return;
-  const hero = arHeroes[state.heroIndex] || arHeroes[0];
-  const statusNode = appRoot.querySelector(".status-title");
-  const hintNode = appRoot.querySelector(".status-hint");
-  const progressNode = appRoot.querySelector(".progress-bar");
-  const status = state.scanning ? "扫描中" : state.scanProgress >= 100 ? "已识别" : state.cameraEnabled ? "已授权" : "待启动";
-  const hint = state.modelError
-    ? `${hero.name}模型加载失败：${state.modelError}`
-    : state.modelLoading
-      ? `正在加载${hero.name}3D模型...`
-      : state.scanning
-        ? "请缓慢移动摄像头，让系统识别平面"
-        : state.scanProgress >= 100
-          ? "识别完成，可显示英雄投影"
-          : state.cameraEnabled
-            ? "移动设备扫描地面或桌面"
-            : "请授权摄像头后开始AR扫描";
-  if (statusNode) statusNode.textContent = `AR状态：${status}`;
-  if (hintNode) hintNode.textContent = hint;
-  if (progressNode) progressNode.style.width = `${state.scanProgress}%`;
-}
-
 function stopCamera() {
   if (state.cameraStream) state.cameraStream.getTracks().forEach((track) => track.stop());
   state.cameraStream = null;
@@ -536,14 +439,12 @@ function toggleScan() {
       clearInterval(scanTimer);
       state.scanning = false;
       state.heroVisible = true;
-      const hero = arHeroes[state.heroIndex] || arHeroes[0];
-      const record = `${hero.icon} ${hero.name} · ${now()}`;
+      const heroName = state.heroIndex === 0 ? "牛魔" : "测试机器人";
+      const record = `🛡️ ${heroName} · ${now()}`;
       state.arHistory = [record, ...state.arHistory].slice(0, 10);
       store.set("arScanHistory", state.arHistory);
-      render();
-      return;
     }
-    updateARStatus();
+    render();
   }, 320);
 }
 
@@ -552,16 +453,12 @@ async function handleARAction(action) {
     state.cameraFacing = state.cameraFacing === "environment" ? "user" : "environment";
     if (state.cameraEnabled) await authorizeCamera(); else showToast("授权摄像头后即可切换镜头");
   } else if (action === "hero") {
-    if (!state.modelReady && !state.heroVisible) return showToast(state.modelError ? "模型加载失败" : "模型仍在加载中");
     state.heroVisible = !state.heroVisible;
-    appRoot.querySelector("[data-ar-model]")?.classList.toggle("is-hidden", !state.heroVisible);
-    appRoot.querySelector(".ar-model-label")?.classList.toggle("is-hidden", !state.heroVisible);
-    showToast(state.heroVisible ? `${arHeroes[state.heroIndex].name}投影已显示` : `${arHeroes[state.heroIndex].name}投影已隐藏`);
+    render();
   } else if (action === "ai") {
-    setPage("chat", { prefill: `请介绍英雄${arHeroes[state.heroIndex].name}的背景和玩法建议` });
+    setPage("chat", { prefill: `请介绍英雄${state.heroIndex === 0 ? "牛魔" : "测试机器人"}的背景和玩法建议` });
   } else {
-    const hero = arHeroes[state.heroIndex] || arHeroes[0];
-    window.alert(`${hero.name} · 英雄档案\n称号：${hero.title}\n特性：${hero.effect}\n模型状态：${state.modelReady ? "已加载" : state.modelError ? "加载失败" : "加载中"}`);
+    showToast("英雄完整资料功能正在接入中");
   }
 }
 
