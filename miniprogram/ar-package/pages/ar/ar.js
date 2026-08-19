@@ -3,7 +3,7 @@ const { loadGLB } = require("../../lib/gltf-runtime-loader.js");
 
 const MODEL_TARGET_SIZE = 1.1;
 const MODEL_MIN_SCALE = 0.1;
-const MODEL_MAX_SCALE = 60.0;
+const MODEL_MAX_SCALE = 1000.0;
 const FALLBACK_NEAR_SCALE = 1.6;
 const FALLBACK_FAR_SCALE = 0.75;
 const DAJI_MODEL_FILE_ID = "cloud://cloud1-d9gd58pgib59d7259.636c-cloud1-d9gd58pgib59d7259-1420321518/daji.glb";
@@ -31,7 +31,7 @@ Page({
         effect: "妲己3D模型",
         intro: "王者荣耀英雄妲己的AR实景投影模型。",
         modelFileId: DAJI_MODEL_FILE_ID,
-        modelScaleMultiplier: 0.28,
+        modelScaleMultiplier: 1,
       },
       {
         id: "hero-jialuo",
@@ -67,7 +67,7 @@ Page({
         effect: "杨玉环3D模型",
         intro: "王者荣耀英雄杨玉环的AR实景投影模型。",
         modelFileId: YANGYUHUAN_MODEL_FILE_ID,
-        modelScaleMultiplier: 45,
+        modelScaleMultiplier: 1,
       },
     ],
     heroIndex: 0,
@@ -102,6 +102,7 @@ Page({
     this._targetPitch = 0;
     this._placedBaseScale = 1;
     this.arMixer = null;
+    this._glRetryCount = 0;
     this.setData({ selectedHero: this.getHeroByIndex(0) });
     this.loadScanHistory();
     this.checkPermissionAndInit();
@@ -551,7 +552,17 @@ Page({
     const hero = this.data.selectedHero || this.getHeroByIndex(this.data.heroIndex);
     if (this.arModel && this.arModelHeroId === hero.id) return Promise.resolve(true);
     if (this.data.modelLoading) return Promise.resolve(false);
-    if (!this.glReady) return Promise.resolve(false);
+    if (!this.glReady) {
+      if (this._glRetryCount >= 10) {
+        console.warn("[AR] glReady retry exhausted (10 attempts)");
+        return Promise.resolve(false);
+      }
+      this._glRetryCount += 1;
+      return new Promise((resolve) => {
+        setTimeout(() => resolve(this.ensureSelectedHeroModel()), 500);
+      });
+    }
+    this._glRetryCount = 0;
     const loadToken = ++this.modelLoadToken;
     this.setData({ modelLoading: true, modelReady: false, modelError: "", scanHint: `正在从云存储下载${hero.name}模型...` });
     this.startModelLoadTimer();
@@ -640,18 +651,21 @@ Page({
       const box = new THREE.Box3().setFromObject(root);
       const size = box.getSize(new THREE.Vector3());
       const maxDimension = Math.max(size.x, size.y, size.z);
+      console.info("[AR] model box:", size.x.toFixed(3), size.y.toFixed(3), size.z.toFixed(3), "maxDim:", maxDimension.toFixed(3));
       if (!Number.isFinite(maxDimension) || maxDimension <= 0.0001) throw new Error("模型尺寸数据无效");
       const scaleMultiplier = Number(hero.modelScaleMultiplier || 1);
       const scale = Math.max(
         MODEL_MIN_SCALE,
         Math.min(MODEL_MAX_SCALE, (MODEL_TARGET_SIZE / maxDimension) * scaleMultiplier)
       );
+      console.info("[AR] multiplier:", scaleMultiplier, "rawScale:", ((MODEL_TARGET_SIZE / maxDimension) * scaleMultiplier).toFixed(4), "clampedScale:", scale.toFixed(4));
       root.scale.setScalar(scale);
       const alignedBox = new THREE.Box3().setFromObject(root);
       const center = alignedBox.getCenter(new THREE.Vector3());
       root.position.x -= center.x;
       root.position.z -= center.z;
       root.position.y -= alignedBox.min.y;
+      console.info("[AR] model final pos:", root.position.x.toFixed(3), root.position.y.toFixed(3), root.position.z.toFixed(3), "scale:", root.scale.x.toFixed(4));
       root.visible = false;
       this.scene.add(root);
       this.arModel = root;
@@ -728,6 +742,7 @@ Page({
       this.arModel.rotation.set(0, 0, 0);
       this.arModel.scale.setScalar(this._placedBaseScale);
       this.arModel.visible = true;
+      console.info("[AR] placeModel:", x.toFixed(3), y.toFixed(3), z.toFixed(3), "scale:", this._placedBaseScale.toFixed(4), "visible:", this.arModel.visible);
       placed = true;
     };
     const placeInFront = () => {
@@ -735,10 +750,13 @@ Page({
         applyPosition(0, 0.8, 1.2);
         return;
       }
-      this.camera.matrixAutoUpdate = true;
-      const forward = new this.THREE.Vector3(0, 0, -1).applyQuaternion(this.camera.quaternion).normalize();
-      const target = this.camera.position.clone().add(forward.multiplyScalar(1.6));
-      target.y = Math.max(0.35, this.camera.position.y - 0.6);
+      const camPos = new this.THREE.Vector3();
+      const camQuat = new this.THREE.Quaternion();
+      const camScale = new this.THREE.Vector3();
+      this.camera.matrixWorld.decompose(camPos, camQuat, camScale);
+      const forward = new this.THREE.Vector3(0, 0, -1).applyQuaternion(camQuat).normalize();
+      const target = camPos.clone().add(forward.multiplyScalar(1.6));
+      target.y = Math.max(0.35, camPos.y - 0.6);
       applyPosition(target.x, target.y, target.z);
     };
 

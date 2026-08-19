@@ -178,8 +178,8 @@ async function postYuanqiWithFallback(appkey, requestBase, apiMode) {
   const hosts = buildYuanqiAttemptList(apiMode);
   // 云函数默认 30s 时限：减少组合爆炸 + 给上游请求加硬超时，避免整体超时。
   const streamModes = ["omit", true];
-  const upstreamTimeoutMs = Number(process.env.YUANQI_UPSTREAM_TIMEOUT_MS || "9000");
-  const deadlineMs = Number(process.env.YUANQI_DEADLINE_MS || "26000");
+  const upstreamTimeoutMs = Number(process.env.YUANQI_UPSTREAM_TIMEOUT_MS || "30000");
+  const deadlineMs = Number(process.env.YUANQI_DEADLINE_MS || "60000");
   const startedAt = Date.now();
   let last = null;
 
